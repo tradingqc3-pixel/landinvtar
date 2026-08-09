@@ -82,9 +82,19 @@
       "typedRoutes": true
     },
     "extra": {
+      "EXPO_PUBLIC_SUPABASE_URL": "https://sodzuknsemsqaiakevjp.supabase.co",
+      "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNvZHp1a25zZW1zcWFpYWtldmpwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwNDYzNDYsImV4cCI6MjA5ODYyMjM0Nn0.4EVCIq7cZaDaJIe8AOFl4cPUZT2dF6gSbYSGsI9Cx0M",
+      "EXPO_PUBLIC_RAZORPAY_KEY_ID": "rzp_test_XXXXXXXXXXXXXX",
+      "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "YOUR_WEB_CLIENT_ID.828630626221-9dblp3eqd0ndon7t67lhlvorarh0o071.apps.googleusercontent.com",
+      "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "YOUR_ANDROID_CLIENT_ID.828630626221-hufrhc0bfme53kmq6c4u0b4vl9r3vmtf.apps.googleusercontent.com",
+      "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "YOUR_IOS_CLIENT_ID.apps.googleusercontent.com",
+      "router": {
+        "origin": false
+      },
       "eas": {
-        "projectId": "61496cb4-5282-456f-9633-f7db5b1dca3d"
+        "projectId": "d5cb5dd9-e791-4df5-945d-00fc1efaa22c"
       }
-    }
+    },
+    "owner": "landinvestar"
   }
 }

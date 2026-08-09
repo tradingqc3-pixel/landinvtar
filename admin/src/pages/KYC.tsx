@@ -245,7 +245,13 @@ const KYC = () => {
                 <div className="flex flex-col items-center p-8 bg-slate-50 dark:bg-slate-800/40 rounded-[32px] border border-slate-100 dark:border-slate-800">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px] mb-6">Biometric Selfie</p>
                   <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white dark:border-slate-700 shadow-2xl bg-slate-200">
-                    <img src={selectedKyc.selfie} className="w-full h-full object-cover transition-transform hover:scale-110 duration-700" alt="Selfie" />
+                    <img
+                      src={selectedKyc.selfie_file_url && !selectedKyc.selfie_file_url.startsWith('http')
+                        ? supabase.storage.from('kyc-documents').getPublicUrl(selectedKyc.selfie_file_url).data.publicUrl
+                        : selectedKyc.selfie_file_url || ''}
+                      className="w-full h-full object-cover transition-transform hover:scale-110 duration-700"
+                      alt="Selfie"
+                    />
                   </div>
                 </div>
               </div>
@@ -254,27 +260,32 @@ const KYC = () => {
                 <h3 className="text-xs font-black uppercase tracking-[3px] text-emerald-500">Visual Evidence</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {[
-                    { label: 'PAN FRONT', url: selectedKyc.pan_image },
-                    { label: 'AADHAAR FRONT', url: selectedKyc.aadhaar_front },
-                    { label: 'AADHAAR BACK', url: selectedKyc.aadhaar_back }
-                  ].map((doc, i) => (
-                    <div key={i} className="space-y-3 group">
-                      <div className="flex justify-between px-2">
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{doc.label}</p>
-                        {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-emerald-500 transition-colors"><ExternalLink size={12}/></a>}
+                    { label: 'PAN FRONT', url: selectedKyc.pan_file_url },
+                    { label: 'AADHAAR FRONT', url: selectedKyc.aadhaar_file_url },
+                    { label: 'AADHAAR BACK', url: selectedKyc.aadhaar_back_file_url }
+                  ].map((doc, i) => {
+                    const fullUrl = doc.url && !doc.url.startsWith('http')
+                      ? supabase.storage.from('kyc-documents').getPublicUrl(doc.url).data.publicUrl
+                      : doc.url;
+                    return (
+                      <div key={i} className="space-y-3 group">
+                        <div className="flex justify-between px-2">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{doc.label}</p>
+                          {fullUrl && <a href={fullUrl} target="_blank" rel="noreferrer" className="text-slate-300 hover:text-emerald-500 transition-colors"><ExternalLink size={12}/></a>}
+                        </div>
+                        <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-800 rounded-[24px] overflow-hidden border dark:border-slate-800 relative shadow-sm group-hover:shadow-xl transition-all">
+                          {fullUrl ? (
+                              <img src={fullUrl} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700" alt={doc.label} />
+                          ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+                                  <ImageIcon size={32} className="text-slate-300" />
+                                  <p className="text-[10px] font-black text-slate-400 uppercase">Missing</p>
+                              </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="aspect-[4/3] bg-slate-100 dark:bg-slate-800 rounded-[24px] overflow-hidden border dark:border-slate-800 relative shadow-sm group-hover:shadow-xl transition-all">
-                        {doc.url ? (
-                            <img src={doc.url} className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-700" alt={doc.label} />
-                        ) : (
-                            <div className="w-full h-full flex flex-col items-center justify-center gap-2">
-                                <ImageIcon size={32} className="text-slate-300" />
-                                <p className="text-[10px] font-black text-slate-400 uppercase">Missing</p>
-                            </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

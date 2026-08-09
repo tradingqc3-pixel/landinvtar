@@ -66,11 +66,17 @@ export default function KycScreen() {
         setKycRecord(data as KycDocument);
         setPan(data.pan_number);
         setAadhaar(data.aadhaar_number);
+        const resolve = (p: string | null) => {
+          if (!p) return '';
+          if (p.startsWith('http')) return p;
+          return supabase.storage.from('kyc-documents').getPublicUrl(p).data.publicUrl;
+        };
+
         setImages({
-          selfie: { uri: data.selfie, base64: null },
-          pan_image: { uri: data.pan_image, base64: null },
-          aadhaar_front: { uri: data.aadhaar_front, base64: null },
-          aadhaar_back: { uri: data.aadhaar_back, base64: null },
+          selfie: { uri: resolve(data.selfie_file_url), base64: null },
+          pan_image: { uri: resolve(data.pan_file_url), base64: null },
+          aadhaar_front: { uri: resolve(data.aadhaar_file_url), base64: null },
+          aadhaar_back: { uri: resolve(data.aadhaar_back_file_url), base64: null },
         });
       }
     } catch (err) {
@@ -121,22 +127,12 @@ export default function KycScreen() {
    * Internal upload helper with strict RLS debugging
    */
   const uploadFile = async (userId: string, base64: string, key: string) => {
-    const bucketName = 'kyc-final';
-    const fileName = `${key}_${Date.now()}.jpg`;
-    const filePath = `${userId}/${fileName}`; // RLS usually requires path to start with user ID
+    const bucketName = 'kyc-documents';
+    const fileExt = 'jpg';
+    const fileName = `${key}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+    const filePath = `${userId}/${fileName}`;
 
-    // Debug logging as requested
-    const { data: { session } } = await supabase.auth.getSession();
-    const { data: { user } } = await supabase.auth.getUser();
-
-    console.log('[KYC DEBUG] Starting Upload:', {
-        bucket: bucketName,
-        path: filePath,
-        userId: userId,
-        authenticatedUser: user?.id,
-        hasSession: !!session,
-        contentType: 'image/jpeg'
-    });
+    console.log(`[PROJECT STORAGE] Uploading ${key} to ${bucketName}/${filePath}`);
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -146,17 +142,12 @@ export default function KycScreen() {
       });
 
     if (error) {
-      console.error('[KYC UPLOAD ERROR] Full Object:', error);
-
-      let friendlyMsg = error.message;
-      if (error.message.includes('row-level security')) {
-        friendlyMsg = `Security Access Denied (RLS). Ensure your account has upload permissions and the bucket '${bucketName}' is correctly configured.`;
-      }
-      throw new Error(friendlyMsg);
+      console.error(`[PROJECT STORAGE] ${key} upload failed:`, error);
+      throw new Error(`Upload failed: ${error.message}`);
     }
 
-    const { data: urlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-    return urlData.publicUrl;
+    // Return the relative path for database storage as requested
+    return filePath;
   };
 
   const submit = async () => {
@@ -195,10 +186,10 @@ export default function KycScreen() {
         user_id: userId,
         pan_number: pan.toUpperCase(),
         aadhaar_number: aadhaar.replace(/\s/g, ''),
-        selfie: uploadedUrls.selfie,
-        pan_image: uploadedUrls.pan_image,
-        aadhaar_front: uploadedUrls.aadhaar_front,
-        aadhaar_back: uploadedUrls.aadhaar_back,
+        selfie_file_url: uploadedUrls.selfie,
+        pan_file_url: uploadedUrls.pan_image,
+        aadhaar_file_url: uploadedUrls.aadhaar_front,
+        aadhaar_back_file_url: uploadedUrls.aadhaar_back,
         status: 'pending',
         rejection_reason: null,
         updated_at: new Date().toISOString()

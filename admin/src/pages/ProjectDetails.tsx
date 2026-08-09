@@ -9,6 +9,7 @@ import {
 import { supabase } from '../lib/supabase';
 import type { LandProject } from '../types/project';
 import StarRating from '../components/StarRating';
+import ProjectImage from '../components/ProjectImage';
 import ErrorBoundary from '../components/ErrorBoundary';
 import clsx from 'clsx';
 
@@ -100,7 +101,11 @@ const ProjectDetails = () => {
             {/* Cover & Gallery */}
             <div className="space-y-4">
               <div className="relative h-[500px] w-full rounded-[48px] overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 group bg-slate-100 dark:bg-slate-800">
-                  <img src={project.cover_image || project.image} className="w-full h-full object-cover" alt="" />
+                  <ProjectImage
+                    src={project.cover_image || project.image}
+                    type="cover"
+                    className="w-full h-full"
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
                   <div className="absolute bottom-8 left-10 right-10 flex items-end justify-between">
                     <div className="space-y-2">
@@ -117,7 +122,10 @@ const ProjectDetails = () => {
                 <div className="grid grid-cols-4 gap-4">
                   {project.gallery_images.slice(0, 4).map((url, i) => (
                       <div key={i} className="h-24 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-800 shadow-sm relative group bg-slate-100 dark:bg-slate-800">
-                        <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="" />
+                        <ProjectImage
+                          src={url}
+                          className="w-full h-full transition-transform group-hover:scale-110"
+                        />
                       </div>
                   ))}
                 </div>
@@ -163,23 +171,28 @@ const ProjectDetails = () => {
                   <div className="space-y-6">
                     <h3 className="text-[10px] font-black uppercase tracking-[3px] text-slate-400">Legal Documents</h3>
                     <div className="grid grid-cols-1 gap-3">
-                      {(project.documents as any[]).map((doc, idx) => (
-                        <a
-                          key={idx}
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group border border-transparent hover:border-emerald-100 dark:hover:border-emerald-800"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="text-slate-400 group-hover:text-emerald-500 transition-colors">
-                              {doc.type?.includes('image') ? <ImageIcon size={18} /> : <File size={18} />}
+                      {(project.documents as any[]).map((doc, idx) => {
+                        const fullUrl = doc.url?.startsWith('http')
+                          ? doc.url
+                          : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/project-documents/${doc.url}`;
+                        return (
+                          <a
+                            key={idx}
+                            href={fullUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all group border border-transparent hover:border-emerald-100 dark:hover:border-emerald-800"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="text-slate-400 group-hover:text-emerald-500 transition-colors">
+                                {doc.type?.includes('image') ? <ImageIcon size={18} /> : <File size={18} />}
+                              </div>
+                              <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{doc.name}</span>
                             </div>
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{doc.name}</span>
-                          </div>
-                          <ExternalLink size={14} className="text-slate-300 group-hover:text-emerald-500" />
-                        </a>
-                      ))}
+                            <ExternalLink size={14} className="text-slate-300 group-hover:text-emerald-500" />
+                          </a>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

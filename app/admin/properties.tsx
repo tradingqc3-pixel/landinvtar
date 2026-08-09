@@ -27,7 +27,7 @@ const ProjectImage = ({ path, style }: { path?: string; style: any }) => {
       return;
     }
 
-    const { data } = supabase.storage.from('project-images').getPublicUrl(path);
+    const { data } = supabase.storage.from('project-media').getPublicUrl(path);
     if (data?.publicUrl && isMounted) setUrl(data.publicUrl);
 
     return () => { isMounted = false; };
@@ -124,9 +124,11 @@ export default function PropertyManagement() {
       if (asset.base64) {
           setSubmitting(true);
           try {
-              const bucketName = 'project-images';
-              const fileName = `property_${Date.now()}.jpg`;
-              const filePath = fileName;
+              const bucketName = 'project-media';
+              const projectId = editingProperty?.id || 'new-project';
+              const fileName = `cover-${Date.now()}.jpg`;
+              const filePath = `${projectId}/cover/${fileName}`;
+
               const { error: uploadError } = await supabase.storage
                   .from(bucketName)
                   .upload(filePath, decode(asset.base64), {

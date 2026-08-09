@@ -29,9 +29,19 @@ module.exports = ({ config }) => {
       EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: googleWebClientId,
       EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID: googleAndroidClientId,
       EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: googleIosClientId,
-      eas: {
-        projectId: "61496cb4-5282-456f-9633-f7db5b1dca3d"
-      }
     },
+    updates: {
+      url: "https://u.expo.dev/d5cb5dd9-e791-4df5-945d-00fc1efaa22c"
+    },
+    android: {
+      ...config.android,
+      runtimeVersion: "1.0.0"
+    },
+    ios: {
+      ...config.ios,
+      runtimeVersion: {
+        policy: "appVersion"
+      }
+    }
   };
 };

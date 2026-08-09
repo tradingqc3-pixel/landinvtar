@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import type { LandProject } from '../types/project';
 import { SectionHeader } from '../components/SectionHeader';
 import StarRating from '../components/StarRating';
+import ProjectImage from '../components/ProjectImage';
 import clsx from 'clsx';
 
 const TABS = [
@@ -86,6 +87,9 @@ const EditProject = () => {
       if (fetchError) throw fetchError;
 
       const p = data as any;
+      console.log('[PROJECT MEDIA] Hydrating state from DB. Cover Path:', p.cover_image || p.image);
+      console.log('[PROJECT MEDIA] Gallery Paths:', p.gallery_images || p.images);
+
       setFormData({
         id: p.id,
         name: p.name || '',
@@ -146,74 +150,210 @@ const EditProject = () => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    // We need an ID to store files in a project-specific folder
+    const projectId = id && id !== 'new' ? id : 'new-project';
+    const STORAGE_BUCKET = field === 'documents' ? 'project-documents' : 'project-media';
+
     setSubmitting(true);
     try {
+      console.log(`[PROJECT MEDIA] Upload started for ${field}`);
+
       const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user) throw new Error('Authentication required.');
 
-      if (authError || !user) {
-        throw new Error('Authentication required. Please log in to upload documents.');
-      }
-
-      const bucket = 'project-documents';
       const uploadedItems: any[] = [];
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
+
+        // 1. Validation
+        if (file.size > 10 * 1024 * 1024) {
+          throw new Error(`File ${file.name} exceeds 10MB limit.`);
+        }
+
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!allowedTypes.includes(file.type)) {
+          throw new Error(`File ${file.name} type not supported.`);
+        }
+
+        // 2. Generate Path
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}${Date.now()}.${fileExt}`;
-        const filePath = `${field}/${fileName}`;
+        const type = field === 'cover_image' ? 'cover' : field === 'gallery_images' ? 'gallery' : 'docs';
+        const fileName = `${type}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const filePath = `${projectId}/${type}/${fileName}`;
+
+        console.log('[PROJECT MEDIA] Bucket:', STORAGE_BUCKET);
+        console.log('[PROJECT MEDIA] Upload path:', filePath);
+        console.log('[PROJECT MEDIA] File type:', file.type);
+        console.log('[PROJECT MEDIA] File size:', file.size);
+        console.log(`[PROJECT MEDIA] Uploading to ${STORAGE_BUCKET}/${filePath}`);
 
         const { error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file);
+          .from(STORAGE_BUCKET)
+          .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
 
         if (uploadError) throw uploadError;
 
         const { data: { publicUrl } } = supabase.storage
-          .from(bucket)
+          .from(STORAGE_BUCKET)
           .getPublicUrl(filePath);
+
+        // Standardized Image URL with cache buster
+        const imageUrl = `${publicUrl}?t=${Date.now()}`;
+
+        console.log('[PROJECT MEDIA] UPLOAD SUCCESSFUL');
+        console.log('[PROJECT MEDIA] STORAGE PATH:', filePath);
+        console.log('[PROJECT MEDIA] IMAGE URL:', imageUrl);
 
         if (field === 'documents') {
           uploadedItems.push({
             name: file.name,
-            url: publicUrl,
-            type: file.type || 'application/octet-stream',
+            url: imageUrl,
+            type: file.type,
             uploaded_at: new Date().toISOString()
           });
         } else {
-          uploadedItems.push(publicUrl);
+          uploadedItems.push(imageUrl);
         }
       }
 
+      // 3. Update State & Database
+      console.log(`[PROJECT MEDIA] Finalizing update for ${field}`);
+
       if (field === 'gallery_images') {
-        setFormData(prev => ({
-          ...prev,
-          gallery_images: [...(prev.gallery_images || []), ...uploadedItems]
-        }));
+        // Use functional update to ensure we have latest state
+        setFormData(prev => {
+          const updatedGallery = [...(prev.gallery_images || []), ...uploadedItems];
+          console.log('[PROJECT MEDIA] NEW GALLERY STATE:', updatedGallery);
+
+          // Trigger background DB sync
+          if (isEdit) {
+            supabase
+              .from('land_projects')
+              .update({
+                gallery_images: updatedGallery,
+                images: updatedGallery // legacy sync
+              })
+              .eq('id', id)
+              .then(({ error }) => {
+                if (error) console.error('[PROJECT MEDIA] DB GALLERY SYNC FAILED:', error);
+                else console.log('[PROJECT MEDIA] DB GALLERY SYNC SUCCESSFUL');
+              });
+          }
+
+          return { ...prev, gallery_images: updatedGallery };
+        });
       } else if (field === 'documents') {
-        setFormData(prev => ({
-          ...prev,
-          documents: [...(prev.documents || []), ...uploadedItems]
-        }));
+        setFormData(prev => {
+          const updatedDocs = [...(prev.documents || []), ...uploadedItems];
+          if (isEdit) {
+            supabase.from('land_projects').update({ documents: updatedDocs }).eq('id', id);
+          }
+          return { ...prev, documents: updatedDocs };
+        });
       } else {
-        setFormData(prev => ({ ...prev, [field]: uploadedItems[0] }));
+        const newCover = uploadedItems[0];
+        console.log('[PROJECT MEDIA] NEW COVER STATE:', newCover);
+
+        setFormData(prev => ({ ...prev, [field]: newCover }));
+
+        if (isEdit) {
+          await supabase
+            .from('land_projects')
+            .update({
+              cover_image: newCover,
+              image: newCover // legacy sync
+            })
+            .eq('id', id);
+          console.log('[PROJECT MEDIA] DATABASE COVER UPDATED');
+        }
       }
+
+      alert(`Successfully uploaded ${uploadedItems.length} file(s).`);
+
     } catch (err: any) {
-      let msg = err.message;
-      if (msg === 'Bucket not found' || msg?.includes('bucket')) {
-        msg = `Supabase Storage bucket 'project-documents' does not exist. Create it in Storage.`;
+      console.error('[PROJECT MEDIA] Upload failed:', {
+        bucket: STORAGE_BUCKET,
+        message: err?.message,
+        status: err?.status,
+        statusCode: err?.statusCode,
+        name: err?.name,
+        error: err
+      });
+
+      let msg = err.message || 'Unknown error';
+      if (msg.includes('Bucket not found')) {
+        msg = `Supabase Storage bucket '${STORAGE_BUCKET}' was not found. Please ensure it exists and RLS policies are configured.`;
       }
-      alert('Upload failed: ' + msg);
+
+      alert(`[UPLOAD ERROR] ${msg}\n\nBucket: ${STORAGE_BUCKET}`);
     } finally {
       setSubmitting(false);
+      // Reset input values to allow uploading the same file again
+      if (e.target) e.target.value = '';
     }
   };
 
-  const removeGalleryImage = (index: number) => {
+  const deleteFileFromStorage = async (pathOrUrl: string) => {
+    try {
+      let bucket = 'project-media';
+      let filePath = pathOrUrl;
+
+      if (pathOrUrl.startsWith('http')) {
+        const urlParts = pathOrUrl.split('/');
+        const bucketIdx = urlParts.indexOf('public') + 1;
+        if (bucketIdx > 0) {
+           bucket = urlParts[bucketIdx];
+           filePath = urlParts.slice(bucketIdx + 1).join('/');
+        }
+      }
+
+      console.log(`[PROJECT MEDIA] Deleting from ${bucket}: ${filePath}`);
+      await supabase.storage.from(bucket).remove([filePath]);
+    } catch (e) {
+      console.error('[PROJECT MEDIA] Failed to delete file from storage:', e);
+    }
+  };
+
+  const removeCoverImage = async () => {
+    if (!formData.cover_image) return;
+    if (!confirm('Are you sure you want to remove the cover image?')) return;
+
+    const oldUrl = formData.cover_image;
+    setFormData(prev => ({ ...prev, cover_image: '' }));
+
+    if (isEdit) {
+      console.log('[PROJECT MEDIA] Removing cover from database');
+      await supabase.from('land_projects').update({ cover_image: '', image: '' }).eq('id', id);
+    }
+
+    await deleteFileFromStorage(oldUrl);
+  };
+
+  const removeGalleryImage = async (index: number) => {
+    const url = formData.gallery_images?.[index];
+    if (!url) return;
+
+    if (!confirm('Remove this image from gallery?')) return;
+
+    const newGallery = formData.gallery_images?.filter((_, i) => i !== index) || [];
     setFormData(prev => ({
       ...prev,
-      gallery_images: prev.gallery_images?.filter((_, i) => i !== index)
+      gallery_images: newGallery
     }));
+
+    if (isEdit) {
+      console.log('[PROJECT MEDIA] Removing gallery image from database');
+      await supabase.from('land_projects').update({
+        gallery_images: newGallery,
+        images: newGallery
+      }).eq('id', id);
+    }
+
+    await deleteFileFromStorage(url);
   };
 
   const removeDocument = (index: number) => {
@@ -314,6 +454,11 @@ const EditProject = () => {
       <p className="text-slate-400 font-black uppercase tracking-widest text-xs">Accessing Inventory...</p>
     </div>
   );
+
+  console.log('[PROJECT MEDIA] Rendering main component. State Check:', {
+    cover: formData.cover_image,
+    gallery: formData.gallery_images
+  });
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
@@ -419,34 +564,93 @@ const EditProject = () => {
             {activeTab === 'media' && (
               <div className="space-y-12 animate-in fade-in slide-in-from-right-4 duration-500">
                 <SectionHeader title="Visual Assets" icon={ImageIcon} />
+
+                {/* Cover Image Section */}
                 <div className="space-y-4">
-                  <h3 className="text-sm font-black uppercase tracking-[4px] text-slate-900 dark:text-white flex items-center gap-3">
-                    <LayoutGrid size={20} className="text-emerald-500" />
-                    Cover Master
-                  </h3>
-                  <div onClick={() => coverInputRef.current?.click()} className="relative h-72 w-full border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 transition-all cursor-pointer group overflow-hidden">
-                    {formData.cover_image ? <img src={formData.cover_image} className="absolute inset-0 w-full h-full object-cover" alt="" /> : <div className="text-slate-400 flex flex-col items-center gap-2"><Plus size={32} /><span className="text-[10px] font-black uppercase">Upload Cover</span></div>}
-                    <input type="file" ref={coverInputRef} onChange={(e) => handleFileUpload(e, 'cover_image')} className="hidden" accept="image/*" />
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-black uppercase tracking-[4px] text-slate-900 dark:text-white flex items-center gap-3">
+                      <LayoutGrid size={20} className="text-emerald-500" />
+                      Cover Master
+                    </h3>
+                    {formData.cover_image && (
+                      <button
+                        type="button"
+                        onClick={removeCoverImage}
+                        className="text-[10px] font-black uppercase tracking-widest text-red-500 hover:text-red-600 transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 size={14} /> Remove Master
+                      </button>
+                    )}
+                  </div>
+
+                  <div
+                    onClick={() => !submitting && coverInputRef.current?.click()}
+                    className={clsx(
+                      "relative h-72 w-full border-2 border-dashed rounded-[32px] flex flex-col items-center justify-center gap-4 transition-all overflow-hidden",
+                      formData.cover_image ? "border-transparent" : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800/80 cursor-pointer"
+                    )}
+                  >
+                    {formData.cover_image ? (
+                      <>
+                        <ProjectImage
+                          src={formData.cover_image}
+                          type="cover"
+                          className="absolute inset-0 w-full h-full"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer">
+                          <p className="text-white font-black uppercase tracking-widest text-xs">Change Cover Master</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-slate-400 flex flex-col items-center gap-2">
+                        {submitting ? <Loader2 className="animate-spin" size={32} /> : <Plus size={32} />}
+                        <span className="text-[10px] font-black uppercase tracking-widest">
+                          {submitting ? 'Uploading Architecture...' : 'Upload Cover Master'}
+                        </span>
+                      </div>
+                    )}
+                    <input type="file" ref={coverInputRef} onChange={(e) => handleFileUpload(e, 'cover_image')} className="hidden" accept="image/jpeg,image/png,image/webp" />
                   </div>
                 </div>
+
+                {/* Gallery Section */}
                 <div className="space-y-4">
                    <h3 className="text-sm font-black uppercase tracking-[4px] text-slate-900 dark:text-white flex items-center gap-3">
                     <ImageIcon size={20} className="text-blue-500" />
                     Project Gallery
                   </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-6">
                     {formData.gallery_images?.map((url, idx) => (
-                      <div key={idx} className="relative aspect-square rounded-3xl overflow-hidden group border border-slate-100 dark:border-slate-800 shadow-sm">
-                        <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110 duration-500" alt="" />
-                        <button type="button" onClick={() => removeGalleryImage(idx)} className="absolute top-2 right-2 p-2 bg-red-500 text-white rounded-xl opacity-0 group-hover:opacity-100 transition-all shadow-lg shadow-red-500/20"><Trash2 size={16} /></button>
+                      <div key={idx} className="relative aspect-square rounded-[32px] overflow-hidden group border border-slate-100 dark:border-slate-800 shadow-sm bg-slate-100 dark:bg-slate-800">
+                        <ProjectImage
+                          src={url}
+                          className="w-full h-full transition-transform group-hover:scale-110 duration-500"
+                        />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                           <button
+                            type="button"
+                            onClick={() => removeGalleryImage(idx)}
+                            className="p-3 bg-red-500 text-white rounded-2xl shadow-xl transform scale-75 group-hover:scale-100 transition-all"
+                           >
+                            <Trash2 size={18} />
+                           </button>
+                        </div>
                       </div>
                     ))}
-                    <button type="button" onClick={() => galleryInputRef.current?.click()} className="aspect-square border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl flex flex-col items-center justify-center gap-2 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-emerald-500">
-                      <Plus size={32} />
-                      <span className="text-[10px] font-black uppercase tracking-widest">Add Media</span>
+
+                    <button
+                      type="button"
+                      onClick={() => !submitting && galleryInputRef.current?.click()}
+                      disabled={submitting}
+                      className="aspect-square border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-[32px] flex flex-col items-center justify-center gap-3 bg-slate-50 dark:bg-slate-800/50 hover:bg-white dark:hover:bg-slate-800 transition-all text-slate-400 hover:text-emerald-500 group"
+                    >
+                      {submitting ? <Loader2 className="animate-spin" size={32} /> : <Plus size={32} className="group-hover:rotate-90 transition-transform" />}
+                      <span className="text-[10px] font-black uppercase tracking-widest">
+                        {submitting ? 'Syncing...' : 'Add Media'}
+                      </span>
                     </button>
                   </div>
-                  <input type="file" multiple ref={galleryInputRef} onChange={(e) => handleFileUpload(e, 'gallery_images')} className="hidden" accept="image/*" />
+                  <input type="file" multiple ref={galleryInputRef} onChange={(e) => handleFileUpload(e, 'gallery_images')} className="hidden" accept="image/jpeg,image/png,image/webp" />
                 </div>
               </div>
             )}
@@ -503,7 +707,12 @@ const EditProject = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer" className="p-2 bg-white dark:bg-slate-900 text-slate-400 hover:text-emerald-500 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <a
+                            href={doc.url?.startsWith('http') ? doc.url : `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/project-documents/${doc.url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-2 bg-white dark:bg-slate-900 text-slate-400 hover:text-emerald-500 rounded-xl border border-slate-100 dark:border-slate-800"
+                          >
                             <ExternalLink size={16} />
                           </a>
                           <button type="button" onClick={() => removeDocument(idx)} className="p-2 bg-white dark:bg-slate-900 text-slate-400 hover:text-red-500 rounded-xl border border-slate-100 dark:border-slate-800">

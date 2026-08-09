@@ -8,6 +8,7 @@ import {
 import { supabase } from '../lib/supabase';
 import type { LandProject } from '../types/project';
 import StarRating from '../components/StarRating';
+import ProjectImage from '../components/ProjectImage';
 import ErrorBoundary from '../components/ErrorBoundary';
 import clsx from 'clsx';
 
@@ -153,7 +154,11 @@ const Projects = () => {
                   <tr key={project.id} className="group hover:bg-slate-50/50 transition-colors">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-4">
-                        <img src={project.cover_image || project.image || 'https://via.placeholder.com/800x400'} className="w-16 h-12 rounded-xl object-cover" alt="" />
+                        <ProjectImage
+                          src={project.cover_image || project.image}
+                          type="cover"
+                          className="w-16 h-12 rounded-xl"
+                        />
                         <div className="min-w-0">
                           <p className="text-sm font-black text-slate-900 dark:text-white truncate">{project.name}</p>
                           <div className="flex items-center gap-1 text-[10px] font-bold text-slate-400"><MapPin size={10} className="text-emerald-500" />{project.location}</div>
