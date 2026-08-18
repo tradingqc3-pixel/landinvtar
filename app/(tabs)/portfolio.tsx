@@ -36,32 +36,35 @@ export default function PortfolioScreen() {
 
   const isMounted = useRef(true);
 
-  // Fetch investments with timeout
+  // Fetch investments with timeout and caching
   const fetchInvestments = async () => {
     try {
-      const result = await withTimeout(
-        Promise.resolve(supabase
-          .from('investments')
-          .select('*, land_projects(id, name, location, image, expected_roi, category)')
-          .order('created_at', { ascending: false })),
-        10000
-      ) as any;
+      // 1. Try cache
+      const cached = await storage.getItem('portfolio_cache');
+      if (cached && isMounted.current) {
+        setInvestments(JSON.parse(cached));
+      }
+
+      // 2. Fresh fetch
+      const { data, error } = await supabase
+        .from('investments')
+        .select('*, land_projects(id, name, location, image, expected_roi, category)')
+        .order('created_at', { ascending: false });
 
       if (!isMounted.current) return;
 
-      const { data, error } = result;
       if (!error && data) {
         setInvestments(data as Investment[]);
+        storage.setItem('portfolio_cache', JSON.stringify(data));
       }
-    } catch (err) {
-      if (isMounted.current) {
-        console.error('Error fetching investments:', err);
-      }
-    }
+    } catch (err) {}
   };
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    if (investments.length === 0) {
+      setLoading(true);
+    }
+
     try {
       await Promise.all([
         fetchInvestments(),
@@ -72,7 +75,7 @@ export default function PortfolioScreen() {
         setLoading(false);
       }
     }
-  }, [refreshProfile]);
+  }, [refreshProfile, investments.length]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

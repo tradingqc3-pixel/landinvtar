@@ -158,10 +158,6 @@ export default function EditProfileScreen() {
       // 4. Upload to Supabase Storage
       const filename = `${userId}/${Date.now()}.jpg`;
 
-      console.log('[Avatar Storage] Upload Debug:');
-      console.log('Bucket:', bucketName);
-      console.log('Path:', filename);
-
       const { error: uploadError } = await supabase.storage
         .from(bucketName)
         .upload(filename, blob, {

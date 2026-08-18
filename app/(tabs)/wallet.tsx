@@ -61,25 +61,37 @@ export default function WalletScreen() {
 
   const fetchTransactions = async () => {
     try {
+      // 1. Load from cache
+      const cached = await storage.getItem('transactions_cache');
+      if (cached && isMounted.current) {
+        setTransactions(JSON.parse(cached));
+      }
+
+      // 2. Fresh fetch
       const { data, error: err } = await supabase
         .from('wallet_transactions')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
-      if (!err && data) setTransactions(data as WalletTransaction[]);
-    } catch (err) {
-      console.error('Error fetching transactions:', err);
-    }
+
+      if (!err && data && isMounted.current) {
+        setTransactions(data as WalletTransaction[]);
+        storage.setItem('transactions_cache', JSON.stringify(data));
+      }
+    } catch (err) {}
   };
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    if (transactions.length === 0) {
+      setLoading(true);
+    }
+
     try {
       await Promise.all([fetchTransactions(), refreshProfile()]);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [refreshProfile]);
+  }, [refreshProfile, transactions.length]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

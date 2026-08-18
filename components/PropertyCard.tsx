@@ -19,6 +19,8 @@ import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
 import type { LandProject } from '@/types/database';
 
+import { getOptimizedImageUrl } from '@/lib/image-utils';
+
 const { width } = Dimensions.get('window');
 
 interface Props {
@@ -31,47 +33,22 @@ interface Props {
 
 export default function PropertyCard({ project, onPress, horizontal = false, isFavoriteInitial, onToggleFavorite }: Props) {
   const { colors, isDark } = useTheme();
-  const { profile, isAuthenticated } = useApp();
+  const { profile, isAuthenticated, favorites, refreshFavorites } = useApp();
   const cardWidth = horizontal ? width * 0.85 : ('100%' as any);
 
-  const [isFav, setIsFav] = useState(isFavoriteInitial ?? false);
+  const [isFav, setIsFav] = useState(isFavoriteInitial ?? favorites.includes(project.id));
   const [favLoading, setFavLoading] = useState(false);
 
   const scale = React.useRef(new Animated.Value(1)).current;
 
   const dynamicStyles = getDynamicStyles(colors, isDark);
 
-  // Sync with initial prop if it changes
+  // Sync with global favorites state
   useEffect(() => {
-    if (isFavoriteInitial !== undefined) {
-      setIsFav(isFavoriteInitial);
+    if (isFavoriteInitial === undefined) {
+      setIsFav(favorites.includes(project.id));
     }
-  }, [isFavoriteInitial]);
-
-  // If initial fav status isn't provided, fetch it
-  useEffect(() => {
-    let active = true;
-    if (isFavoriteInitial === undefined && isAuthenticated && profile?.id) {
-      const checkFav = async () => {
-        try {
-          const { data, error } = await supabase
-            .from('favorites')
-            .select('id')
-            .eq('user_id', profile.id)
-            .eq('project_id', project.id)
-            .maybeSingle();
-
-          if (!error && data && active) {
-            setIsFav(true);
-          }
-        } catch (err) {
-          console.error('[Fav] Check error:', err);
-        }
-      };
-      checkFav();
-    }
-    return () => { active = false; };
-  }, [isAuthenticated, profile?.id, project.id, isFavoriteInitial]);
+  }, [favorites, project.id, isFavoriteInitial]);
 
   const handlePressIn = () => {
     Animated.spring(scale, { toValue: 0.98, useNativeDriver: true }).start();
@@ -83,13 +60,6 @@ export default function PropertyCard({ project, onPress, horizontal = false, isF
 
   const toggleFavorite = async (e: any) => {
     e.stopPropagation();
-
-    // Diagnosis Logging
-    console.log('[Fav] DIAGNOSIS START');
-    console.log('[Fav] Auth Status:', isAuthenticated);
-    console.log('[Fav] User Profile ID:', profile?.id);
-    console.log('[Fav] Project ID:', project.id);
-    console.log('[Fav] Current Fav State:', isFav);
 
     if (!isAuthenticated) {
       Alert.alert(
@@ -116,50 +86,39 @@ export default function PropertyCard({ project, onPress, horizontal = false, isF
 
     try {
       if (newFavState) {
-        console.log('[Fav] Attempting INSERT...');
-        const payload = { user_id: profile.id, project_id: project.id };
-        console.log('[Fav] Payload:', payload);
-
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('favorites')
-          .insert(payload)
-          .select();
+          .insert({ user_id: profile.id, project_id: project.id });
 
-        console.log('[Fav] Supabase Response (Insert):', { data, error });
         if (error) throw error;
       } else {
-        console.log('[Fav] Attempting DELETE...');
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('favorites')
           .delete()
           .eq('user_id', profile.id)
-          .eq('project_id', project.id)
-          .select();
+          .eq('project_id', project.id);
 
-        console.log('[Fav] Supabase Response (Delete):', { data, error });
         if (error) throw error;
       }
-
-      console.log('[Fav] Operation Success. New State:', newFavState);
 
       if (onToggleFavorite) {
         onToggleFavorite(project.id, newFavState);
       }
+      refreshFavorites();
     } catch (err: any) {
-      console.error('[Fav] END-TO-END ERROR:', err);
-
       // Revert UI on error
       setIsFav(!newFavState);
 
-      // Real error message for debugging as requested
-      Alert.alert(
-        'Favorite Error',
-        `Details: ${err.message || JSON.stringify(err)}\n\nHint: Ensure the 'favorites' table exists and RLS policies allow authenticated inserts.`
-      );
+      Alert.alert('Error', err.message || 'Failed to update favorites');
     } finally {
       setFavLoading(false);
     }
   };
+
+  const optimizedImage = React.useMemo(() =>
+    getOptimizedImageUrl(project.image, { width: horizontal ? 400 : 800, quality: 75 }),
+    [project.image, horizontal]
+  );
 
   return (
     <Animated.View style={{ transform: [{ scale }], width: cardWidth, marginBottom: 24 }}>
@@ -171,7 +130,12 @@ export default function PropertyCard({ project, onPress, horizontal = false, isF
         activeOpacity={0.95}
       >
         <View style={dynamicStyles.imageContainer}>
-          <Image source={{ uri: project.image }} style={dynamicStyles.image} resizeMode="cover" />
+          <Image
+            source={{ uri: optimizedImage }}
+            style={dynamicStyles.image}
+            resizeMode="cover"
+            fadeDuration={300}
+          />
           <LinearGradient
             colors={isDark ? ['transparent', 'rgba(11, 15, 20, 0.9)'] : ['transparent', 'rgba(255, 255, 255, 0.9)']}
             style={dynamicStyles.imageOverlay}

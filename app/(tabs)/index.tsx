@@ -16,6 +16,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
 import { withTimeout } from '@/lib/api-utils';
+import { storage } from '@/lib/storage';
 import type { LandProject, Investment } from '@/types/database';
 import { computePortfolioStats } from '@/types/database';
 import PropertyCard from '@/components/PropertyCard';
@@ -45,41 +46,65 @@ export default function HomeScreen() {
 
   const fetchData = async () => {
     try {
+      // 1. Try to load from cache first for immediate display
+      const cachedData = await storage.getItem('home_data_cache');
+      if (cachedData && isMounted.current) {
+        try {
+          const { trending, invs, unread } = JSON.parse(cachedData);
+          if (trending) setTrendingProjects(trending);
+          if (invs) setInvestments(invs);
+          setUnreadCount(unread || 0);
+          Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        } catch (e) {
+          console.error('[Home] Cache parse error:', e);
+        }
+      }
+
+      // 2. Fetch fresh data in background
+      // Use maybeSingle or select with head to avoid errors if tables are empty
       const [projectsRes, investmentsRes, notifRes] = await Promise.all([
-        withTimeout(
-          Promise.resolve(supabase.from('land_projects').select('*').eq('is_active', true).order('investors_count', { ascending: false }).limit(4)),
-          10000
-        ),
-        withTimeout(
-          Promise.resolve(supabase.from('investments').select('id, amount, roi_rate, created_at')),
-          10000
-        ),
-        withTimeout(
-          Promise.resolve(supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false)),
-          10000
-        ),
+        supabase.from('land_projects').select('*').eq('is_active', true).order('investors_count', { ascending: false }).limit(4),
+        supabase.from('investments').select('id, amount, roi_rate, created_at'),
+        supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false),
       ]);
 
       if (!isMounted.current) return;
 
-      if (projectsRes.data) setTrendingProjects(projectsRes.data as LandProject[]);
-      if (investmentsRes.data) setInvestments(investmentsRes.data as Investment[]);
-      if (notifRes.count !== null) setUnreadCount(notifRes.count);
+      const trending = (projectsRes.data || []) as LandProject[];
+      const invs = (investmentsRes.data || []) as Investment[];
+      const unread = notifRes.count || 0;
 
-      Animated.timing(fadeAnim, { toValue: 1, duration: 800, useNativeDriver: true }).start();
+      setTrendingProjects(trending);
+      setInvestments(invs);
+      setUnreadCount(unread);
+
+      // Cache the result for next time
+      await storage.setItem('home_data_cache', JSON.stringify({ trending, invs, unread }));
+
+      if (fadeAnim._value === 0) {
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+      }
     } catch (err) {
-      console.error('[Home] Fetch error:', err);
+      console.error('[Home] Fresh fetch error:', err);
     }
   };
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    // Determine if we need to show the full screen loader
+    // We only show it if we have no cached data yet
+    const cachedData = await storage.getItem('home_data_cache');
+    if (!cachedData && isMounted.current) {
+      setLoading(true);
+    }
+
     try {
       await Promise.all([fetchData(), refreshProfile()]);
+    } catch (err) {
+      console.error('[Home] loadAll error:', err);
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [refreshProfile]);
+  }, [refreshProfile]); // Removed trendingProjects.length dependency
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

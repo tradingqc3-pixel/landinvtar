@@ -12,7 +12,7 @@ import { supabase } from '@/lib/supabase';
 
 export default function AppSplashScreen() {
   const { colors, isDark } = useTheme();
-  const { isAuthenticated, loading, profile } = useApp();
+  const { isAuthenticated, loading, profile, settings } = useApp();
   const { isLocked, authenticate } = useBiometrics();
   const [hasRedirected, setHasRedirected] = useState(false);
   const redirectionStarted = useRef(false);
@@ -62,26 +62,21 @@ export default function AppSplashScreen() {
     const performRedirect = async () => {
       redirectionStarted.current = true;
 
-      // Delay for splash animation
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      if (!isMounted.current) return;
+      // Parallelize animation delay with essential checks
+      const animationPromise = new Promise(resolve => setTimeout(resolve, 800));
 
       try {
-        // Check Maintenance
-        const { data: config } = await supabase.from('app_settings').select('maintenance_mode, maintenance_message').limit(1).maybeSingle();
+        const onboardingCompleted = await AsyncStorage.getItem('onboarding_completed');
+        await animationPromise;
 
         if (!isMounted.current) return;
 
-        if (config?.maintenance_mode && !profile?.is_admin) {
-          Alert.alert('System Maintenance', config.maintenance_message || 'Undergoing maintenance.');
+        // Use pre-fetched settings from context for zero delay
+        if (settings?.maintenance_mode && !profile?.is_admin) {
+          Alert.alert('System Maintenance', settings.maintenance_message || 'Undergoing maintenance.');
           redirectionStarted.current = false;
           return;
         }
-
-        const onboardingCompleted = await AsyncStorage.getItem('onboarding_completed');
-
-        if (!isMounted.current) return;
 
         if (onboardingCompleted !== 'true') {
           router.replace('/onboarding');

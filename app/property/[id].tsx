@@ -188,7 +188,6 @@ export default function PropertyDetailsScreen() {
         },
         (payload) => {
           if (!isMounted.current) return;
-          console.log('Live project update received:', payload.new);
           setProject(payload.new as LandProject);
         }
       )

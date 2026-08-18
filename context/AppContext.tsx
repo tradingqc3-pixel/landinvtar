@@ -16,11 +16,14 @@ interface AppContextType {
   isAuthenticated: boolean;
   isLocked: boolean;
   privacyMode: boolean;
+  favorites: string[];
+  settings: { maintenance_mode: boolean; maintenance_message: string } | null;
   unlockApp: () => Promise<boolean>;
   refreshProfile: () => Promise<Profile | null>;
   signOut: () => Promise<void>;
   setWalletBalance: (balance: number) => void;
   setPrivacyMode: (enabled: boolean) => void;
+  refreshFavorites: () => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -30,16 +33,20 @@ const AppContext = createContext<AppContextType>({
   isAuthenticated: false,
   isLocked: false,
   privacyMode: false,
+  favorites: [],
   unlockApp: async () => false,
   refreshProfile: async () => null,
   signOut: async () => {},
   setWalletBalance: () => {},
   setPrivacyMode: () => {},
+  refreshFavorites: async () => {},
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [favorites, setFavorites] = useState<string[]>([]);
+  const [settings, setSettings] = useState<{ maintenance_mode: boolean; maintenance_message: string } | null>(null);
   const [loading, setLoading] = useState(true);
   const [isLocked, setIsLocked] = useState(false);
   const [privacyMode, setPrivacyModeState] = useState(false);
@@ -124,17 +131,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [safeUpdate]);
 
+  const refreshFavorites = useCallback(async () => {
+    if (!session?.user?.id) return;
+    try {
+      const { data } = await supabase
+        .from('favorites')
+        .select('project_id')
+        .eq('user_id', session.user.id);
+      if (data) {
+        setFavorites(data.map(f => f.project_id));
+      }
+    } catch (e) {
+      // Silent error
+    }
+  }, [session?.user?.id]);
+
   const refreshProfile = useCallback(async (): Promise<Profile | null> => {
     const { data: { session: currentSession } } = await supabase.auth.getSession();
     const userId = currentSession?.user?.id;
     if (!userId) return null;
 
     const existingProfile = await fetchProfile(userId);
+    refreshFavorites();
+
     if (existingProfile === null && isMounted.current) {
       return await autoCreateProfile(userId, currentSession.user.email || '');
     }
     return existingProfile;
-  }, [fetchProfile, autoCreateProfile]);
+  }, [fetchProfile, autoCreateProfile, refreshFavorites]);
 
   const signOut = useCallback(async () => {
     try {
@@ -190,10 +214,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const handleUrl = useCallback(async (url: string) => {
     if (!url || !isMounted.current) return;
-    console.log('[DeepLink] Handling URL:', url);
 
     try {
-      const session = await finalizeSupabaseAuthFromUrl(url, '[DeepLink]');
+      const session = await finalizeSupabaseAuthFromUrl(url);
       if (session) {
         safeUpdate(() => setSession(session));
         await fetchProfile(session.user.id);
@@ -211,31 +234,61 @@ export function AppProvider({ children }: { children: ReactNode }) {
       initialized.current = true;
 
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        // 1. Try to load session and profile from cache first for instant startup
+        const [cachedProfile, pm, isBiometricEnabled] = await Promise.all([
+          storage.getItem('cached_profile'),
+          storage.getItem('privacy_mode'),
+          Platform.OS !== 'web' ? storage.getItem('biometrics_enabled') : Promise.resolve(null)
+        ]);
 
-        if (!isMounted.current) return;
-
-        if (currentSession) {
-          safeUpdate(() => setSession(currentSession));
-          await fetchProfile(currentSession.user.id);
-
-          const pm = await storage.getItem('privacy_mode');
-          safeUpdate(() => setPrivacyModeState(pm === 'true'));
-
-          if (Platform.OS !== 'web') {
-            const isBiometricEnabled = await storage.getItem('biometrics_enabled');
-            if (isBiometricEnabled === 'true') {
-              safeUpdate(() => setIsLocked(true));
-            }
+        if (cachedProfile) {
+          try {
+            const parsed = JSON.parse(cachedProfile);
+            safeUpdate(() => setProfile(parsed));
+          } catch (e) {
+            // Invalid cache
           }
         }
 
+        if (pm) safeUpdate(() => setPrivacyModeState(pm === 'true'));
+        if (isBiometricEnabled === 'true' && Platform.OS !== 'web') {
+          safeUpdate(() => setIsLocked(true));
+        }
+
+        // 2. Parallel initialization of Supabase data
+        const [sessionRes, settingsRes] = await Promise.all([
+          supabase.auth.getSession().catch(() => ({ data: { session: null } })),
+          supabase.from('app_settings').select('maintenance_mode, maintenance_message').limit(1).maybeSingle().catch(() => ({ data: null }))
+        ]);
+
+        if (!isMounted.current) return;
+
+        if (settingsRes.data) {
+          safeUpdate(() => setSettings(settingsRes.data));
+        }
+
+        const currentSession = sessionRes.data.session;
+        if (currentSession) {
+          safeUpdate(() => setSession(currentSession));
+
+          // 3. Parallel fetch in background
+          // Use .then() to avoid blocking 'setLoading(false)'
+          fetchProfile(currentSession.user.id).then(freshProfile => {
+            if (freshProfile) {
+              storage.setItem('cached_profile', JSON.stringify(freshProfile));
+            }
+          }).catch(() => {});
+
+          refreshFavorites().catch(() => {});
+        }
+
         const initialUrl = await Linking.getInitialURL();
-        if (initialUrl) await handleUrl(initialUrl);
+        if (initialUrl) handleUrl(initialUrl);
 
       } catch (err) {
-        console.error('[App] Init error:', err);
+        // Silent error for init
       } finally {
+        // Confirm loading is done so app can transition from splash
         safeUpdate(() => setLoading(false));
       }
     };
@@ -246,9 +299,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       safeUpdate(() => setSession(nextSession));
 
       if (event === 'SIGNED_IN' && nextSession) {
-        await fetchProfile(nextSession.user.id);
+        const p = await fetchProfile(nextSession.user.id);
+        if (p) storage.setItem('cached_profile', JSON.stringify(p));
       } else if (event === 'SIGNED_OUT') {
         safeUpdate(() => setProfile(null));
+        storage.removeItem('cached_profile');
       } else if (event === 'PASSWORD_RECOVERY') {
         router.push('/reset-password');
       }
@@ -272,11 +327,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!session,
         isLocked,
         privacyMode,
+        favorites,
         unlockApp,
         refreshProfile,
         signOut,
         setWalletBalance,
         setPrivacyMode,
+        refreshFavorites,
       }}
     >
       {children}

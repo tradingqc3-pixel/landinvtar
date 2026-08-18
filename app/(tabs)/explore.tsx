@@ -27,6 +27,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import { supabase } from '@/lib/supabase';
 import { withTimeout } from '@/lib/api-utils';
+import { storage } from '@/lib/storage';
 import type { LandProject } from '@/types/database';
 import PropertyCard from '@/components/PropertyCard';
 
@@ -90,9 +91,7 @@ export default function ExploreScreen() {
       if (isMounted.current) {
         setUnreadCount(count || 0);
       }
-    } catch (err) {
-      console.error('[Explore] Fetch unread error:', err);
-    }
+    } catch (err) {}
   }, []);
 
   useEffect(() => {
@@ -105,34 +104,53 @@ export default function ExploreScreen() {
 
   const fetchProjects = async () => {
     try {
-      const result = await withTimeout(
-        Promise.resolve(supabase
-          .from('land_projects')
-          .select('*')
-          .eq('is_active', true)),
-        10000
-      ) as any;
+      // 1. Load from cache for immediate UI
+      const cached = await storage.getItem('explore_projects_cache');
+      if (cached && isMounted.current) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProjects(parsed);
+            Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+          }
+        } catch (e) {
+          console.error('[Explore] Cache error:', e);
+        }
+      }
+
+      // 2. Fresh fetch with optimized parameters
+      const { data, error } = await supabase
+        .from('land_projects')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(30);
 
       if (!isMounted.current) return;
 
-      const { data, error } = result;
       if (!error && data) {
         setProjects(data as LandProject[]);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 800,
-          useNativeDriver: true,
-        }).start();
+        // Update cache
+        await storage.setItem('explore_projects_cache', JSON.stringify(data));
+
+        if (fadeAnim._value === 0) {
+          Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
+        }
+      } else if (error) {
+        console.error('[Explore] Fetch error:', error);
       }
     } catch (err) {
-      if (isMounted.current) {
-        console.error('Error fetching projects:', err);
-      }
+      console.error('[Explore] Global error:', err);
     }
   };
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    // Only show full loader if cache is empty
+    const cached = await storage.getItem('explore_projects_cache');
+    if (!cached && isMounted.current) {
+      setLoading(true);
+    }
+
     try {
       await fetchProjects();
     } finally {

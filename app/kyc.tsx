@@ -123,16 +123,11 @@ export default function KycScreen() {
     }
   };
 
-  /**
-   * Internal upload helper with strict RLS debugging
-   */
   const uploadFile = async (userId: string, base64: string, key: string) => {
     const bucketName = 'kyc-documents';
     const fileExt = 'jpg';
     const fileName = `${key}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
     const filePath = `${userId}/${fileName}`;
-
-    console.log(`[PROJECT STORAGE] Uploading ${key} to ${bucketName}/${filePath}`);
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -142,11 +137,9 @@ export default function KycScreen() {
       });
 
     if (error) {
-      console.error(`[PROJECT STORAGE] ${key} upload failed:`, error);
       throw new Error(`Upload failed: ${error.message}`);
     }
 
-    // Return the relative path for database storage as requested
     return filePath;
   };
 
