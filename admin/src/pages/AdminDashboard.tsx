@@ -202,7 +202,7 @@ const AdminDashboard = () => {
               <Activity size={20} className="text-blue-500" />
               Neural Activity
             </h3>
-            <button onClick={() => navigate('/admin/logs')} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all text-slate-400"><ChevronRight size={24}/></button>
+            <button onClick={() => navigate('/logs')} className="p-2 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-full transition-all text-slate-400"><ChevronRight size={24}/></button>
           </div>
           <div className="space-y-4 flex-1 relative z-10">
             {stats.recentActivities.length === 0 ? (
@@ -231,7 +231,7 @@ const AdminDashboard = () => {
             )}
           </div>
           <button
-            onClick={() => navigate('/admin/logs')}
+            onClick={() => navigate('/logs')}
             className="w-full py-4 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 rounded-2xl text-[10px] font-black uppercase tracking-[3px] hover:bg-emerald-500 hover:text-white transition-all"
           >
             Audit History

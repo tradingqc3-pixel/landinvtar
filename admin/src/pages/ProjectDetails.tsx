@@ -4,7 +4,7 @@ import {
   ArrowLeft, Edit2, MapPin, TrendingUp, Info,
   IndianRupee, Layers, Calendar, ShieldCheck,
   FileText, ExternalLink, CheckCircle2, AlertCircle,
-  LayoutGrid, Download, Clock, File, Image as ImageIcon
+  LayoutGrid, Download, Clock, File as FileIcon, Image as ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { LandProject } from '../types/project';
@@ -60,7 +60,8 @@ const ProjectDetails = () => {
       <AlertCircle className="mx-auto text-red-500 mb-6" size={64} />
       <h2 className="text-2xl font-black mb-2">Project Not Found</h2>
       <p className="text-slate-500 mb-8">{error || 'The requested project node does not exist in the decentralized ledger.'}</p>
-      <button onClick={() => navigate('/admin/projects')} className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest transition-all hover:bg-black">
+      <button onClick={() => navigate('/projects')} className="w-full py-4 bg-slate-900 text-white dark:bg-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+        <ArrowLeft size={20} />
         Return to Inventory
       </button>
     </div>
@@ -73,7 +74,7 @@ const ProjectDetails = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
           <div className="flex items-center gap-6">
             <button
-              onClick={() => navigate('/admin/projects')}
+              onClick={() => navigate('/projects')}
               className="p-4 bg-white dark:bg-slate-900 rounded-[20px] border border-slate-100 dark:border-slate-800 text-slate-400 hover:text-emerald-500 shadow-sm transition-all group"
             >
               <ArrowLeft size={24} className="group-hover:-translate-x-1 transition-transform" />
@@ -87,7 +88,7 @@ const ProjectDetails = () => {
           </div>
 
           <button
-            onClick={() => navigate(`/admin/projects/${project.id}/edit`)}
+            onClick={() => navigate(`/projects/${project.id}/edit`)}
             className="flex items-center justify-center gap-3 px-10 py-5 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-[24px] text-xs font-black uppercase tracking-[3px] shadow-2xl hover:scale-[1.03] active:scale-95 transition-all"
           >
             <Edit2 size={18} />
@@ -185,7 +186,7 @@ const ProjectDetails = () => {
                           >
                             <div className="flex items-center gap-3">
                               <div className="text-slate-400 group-hover:text-emerald-500 transition-colors">
-                                {doc.type?.includes('image') ? <ImageIcon size={18} /> : <File size={18} />}
+                                {doc.type?.includes('image') ? <ImageIcon size={18} /> : <FileIcon size={18} />}
                               </div>
                               <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{doc.name}</span>
                             </div>

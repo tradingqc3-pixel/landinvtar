@@ -1,48 +1,32 @@
 import { createClient } from '@supabase/supabase-js';
 
-const getEnvVar = (key: string): string | undefined => {
-  const env = import.meta.env as Record<string, string | boolean | undefined>;
+/**
+ * Standard Vite environment variable extraction.
+ * VITE_ prefix is required for client-side exposure.
+ */
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  return [
-    env[`VITE_${key}`],
-    env[`NEXT_PUBLIC_${key}`],
-    env[`EXPO_PUBLIC_${key}`],
-    env[key],
-  ].find((value): value is string => typeof value === 'string' && value.trim().length > 0);
-};
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || getEnvVar('SUPABASE_URL') || 'https://sodzuknsemsqaiakevjp.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || getEnvVar('SUPABASE_ANON_KEY');
-
-if (!supabaseAnonKey) {
-  const errorMsg = `
-Supabase configuration error in Admin Panel:
-Missing environment variables.
-Anon Key: MISSING
-
-Ensure VITE_SUPABASE_ANON_KEY is set.
-  `.trim();
-
-  console.error('[Supabase Admin]', errorMsg);
-
-  if (typeof document !== 'undefined') {
-    const root = document.getElementById('root');
-    if (root) {
-      root.innerHTML = `<div style="padding: 2rem; color: red; font-family: sans-serif;"><h2>Configuration Error</h2><pre style="background: #fee; padding: 1rem; border-radius: 8px;">${errorMsg}</pre></div>`;
-    }
-  }
-
-  throw new Error(errorMsg);
+// Fail-fast with clear messaging if configuration is missing
+if (!supabaseUrl || !supabaseAnonKey) {
+  const missing = !supabaseUrl ? 'VITE_SUPABASE_URL' : 'VITE_SUPABASE_ANON_KEY';
+  console.error(`[Supabase] Initialization failed: ${missing} is not defined in .env`);
 }
 
-// Single instance of Supabase client
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+/**
+ * Single instance of Supabase client.
+ * Fallback values are provided but VITE environment variables take precedence.
+ */
+export const supabase = createClient(
+  supabaseUrl || 'https://sodzuknsemsqaiakevjp.supabase.co',
+  supabaseAnonKey || ''
+);
 
 /**
- * Returns the single instance of Supabase client.
- * Provided for backward compatibility with components using the legacy getter.
+ * Helper to check if the current request was blocked by the browser.
  */
-export const getSupabaseClient = () => supabase;
+export const isNetworkError = (error: any) => {
+  return error instanceof TypeError && error.message === 'Failed to fetch';
+};
 
-export { supabase };
 export default supabase;

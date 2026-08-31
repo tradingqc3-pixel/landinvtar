@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft, Save, Loader2, Image as ImageIcon,
   MapPin, Info, FileText, IndianRupee, Trash2, Plus,
-  LayoutGrid, AlertCircle, FileUp, ExternalLink, File
+  LayoutGrid, AlertCircle, FileUp, ExternalLink, File as FileIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import type { LandProject } from '../types/project';
@@ -422,7 +422,7 @@ const EditProject = () => {
         if (insertError) throw insertError;
       }
 
-      navigate('/admin/projects');
+      navigate('/projects');
     } catch (err: any) {
       handleSupabaseError(err, 'save project');
     } finally {
@@ -464,7 +464,7 @@ const EditProject = () => {
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/admin/projects')} className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 transition-all">
+          <button onClick={() => navigate('/projects')} className="p-3 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-slate-500 transition-all">
             <ArrowLeft size={24} />
           </button>
           <div>
@@ -699,7 +699,7 @@ const EditProject = () => {
                       <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-800 rounded-[24px] group">
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center text-slate-400 group-hover:text-emerald-500 transition-colors">
-                            {doc.type.includes('image') ? <ImageIcon size={24} /> : <File size={24} />}
+                            {doc.type.includes('image') ? <ImageIcon size={24} /> : <FileIcon size={24} />}
                           </div>
                           <div>
                             <p className="text-xs font-black text-slate-900 dark:text-white truncate max-w-[200px]">{doc.name}</p>

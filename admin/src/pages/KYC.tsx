@@ -246,9 +246,7 @@ const KYC = () => {
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[4px] mb-6">Biometric Selfie</p>
                   <div className="w-48 h-48 rounded-full overflow-hidden border-4 border-white dark:border-slate-700 shadow-2xl bg-slate-200">
                     <img
-                      src={selectedKyc.selfie_file_url && !selectedKyc.selfie_file_url.startsWith('http')
-                        ? supabase.storage.from('kyc-documents').getPublicUrl(selectedKyc.selfie_file_url).data.publicUrl
-                        : selectedKyc.selfie_file_url || ''}
+                      src={selectedKyc.selfie}
                       className="w-full h-full object-cover transition-transform hover:scale-110 duration-700"
                       alt="Selfie"
                     />
@@ -260,13 +258,11 @@ const KYC = () => {
                 <h3 className="text-xs font-black uppercase tracking-[3px] text-emerald-500">Visual Evidence</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   {[
-                    { label: 'PAN FRONT', url: selectedKyc.pan_file_url },
-                    { label: 'AADHAAR FRONT', url: selectedKyc.aadhaar_file_url },
-                    { label: 'AADHAAR BACK', url: selectedKyc.aadhaar_back_file_url }
+                    { label: 'PAN FRONT', url: selectedKyc.pan_image },
+                    { label: 'AADHAAR FRONT', url: selectedKyc.aadhaar_front },
+                    { label: 'AADHAAR BACK', url: selectedKyc.aadhaar_back }
                   ].map((doc, i) => {
-                    const fullUrl = doc.url && !doc.url.startsWith('http')
-                      ? supabase.storage.from('kyc-documents').getPublicUrl(doc.url).data.publicUrl
-                      : doc.url;
+                    const fullUrl = doc.url;
                     return (
                       <div key={i} className="space-y-3 group">
                         <div className="flex justify-between px-2">

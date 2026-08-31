@@ -102,7 +102,7 @@ const Projects = () => {
               <button onClick={() => setViewViewMode('table')} className={clsx("p-2 rounded-lg", viewMode === 'table' ? "bg-slate-100 dark:bg-slate-800 text-emerald-600" : "text-slate-400")}><List size={20} /></button>
               <button onClick={() => setViewViewMode('grid')} className={clsx("p-2 rounded-lg", viewMode === 'grid' ? "bg-slate-100 dark:bg-slate-800 text-emerald-600" : "text-slate-400")}><LayoutGrid size={20} /></button>
             </div>
-            <button onClick={() => navigate('/admin/projects/new')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-black uppercase tracking-wider shadow-xl shadow-emerald-600/20">
+            <button onClick={() => navigate('/projects/new')} className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl flex items-center gap-2 text-sm font-black uppercase tracking-wider shadow-xl shadow-emerald-600/20">
               <Plus size={20} strokeWidth={3} /> Add Project
             </button>
           </div>
@@ -179,8 +179,8 @@ const Projects = () => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => navigate(`/admin/projects/${project.id}`)} className="p-2 text-slate-400 hover:text-emerald-600"><Eye size={18} /></button>
-                        <button onClick={() => navigate(`/admin/projects/${project.id}/edit`)} className="p-2 text-slate-400 hover:text-blue-600"><Edit2 size={18} /></button>
+                        <button onClick={() => navigate(`/projects/${project.id}`)} className="p-2 text-slate-400 hover:text-emerald-600"><Eye size={18} /></button>
+                        <button onClick={() => navigate(`/projects/${project.id}/edit`)} className="p-2 text-slate-400 hover:text-blue-600"><Edit2 size={18} /></button>
                         <button onClick={() => handleDelete(project.id)} className="p-2 text-slate-400 hover:text-red-600"><Trash2 size={18} /></button>
                       </div>
                     </td>

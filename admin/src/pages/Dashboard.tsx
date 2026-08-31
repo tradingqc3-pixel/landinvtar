@@ -297,7 +297,7 @@ const Dashboard = () => {
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Recent Activities</h3>
           </div>
           <button
-            onClick={() => navigate('/admin/logs')}
+            onClick={() => navigate('/logs')}
             className="text-emerald-600 text-sm font-bold hover:underline flex items-center gap-1 transition-all"
           >
             View all logs

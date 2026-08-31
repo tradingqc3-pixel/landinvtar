@@ -28,6 +28,8 @@ export interface LandProject {
   lng: number | null;
   appreciation_rate: number;
   is_active: boolean;
+  is_featured: boolean;
+  featured_order: number | null;
   created_at: string;
   updated_at: string;
   rating: number;

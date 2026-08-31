@@ -58,7 +58,7 @@ const Login = () => {
         throw new Error('Access denied. Admin privileges required.');
       }
 
-      navigate('/admin/dashboard');
+      navigate('/dashboard');
     } catch (err: any) {
       console.error(err);
 
