@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # InvestLand
 
 InvestLand is a fractional land investment platform built with Expo, React Native, and Supabase.
@@ -44,3 +45,6 @@ To generate a release APK:
    ```bash
    eas build -p android --profile preview
    ```
+=======
+# landinvtar-website
+>>>>>>> 81b82c2f91f431ae811c6f7a44e4d659b9b5cd42
