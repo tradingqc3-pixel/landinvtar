@@ -1,0 +1,20 @@
+{
+  "name": "InvestLand",
+  "short_name": "InvestLand",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020B1F",
+  "theme_color": "#059669",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
