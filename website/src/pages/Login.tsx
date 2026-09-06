@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Mail, Lock, ChevronRight, AlertCircle,
-  Eye, EyeOff, Grapes as Google
+  Eye, EyeOff
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 

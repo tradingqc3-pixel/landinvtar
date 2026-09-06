@@ -54,18 +54,11 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl }) =>
                  <Loader2 className="w-12 h-12 text-emerald-500 animate-spin opacity-50" />
               </div>
               <ReactPlayer
-                url={videoUrl}
+                src={videoUrl}
                 width="100%"
                 height="100%"
                 playing={true}
                 controls={true}
-                pip={false}
-                stopOnUnmount={true}
-                config={{
-                   youtube: {
-                      playerVars: { showinfo: 0, rel: 0, modestbranding: 1 }
-                   }
-                }}
                 className="relative z-10"
               />
             </div>

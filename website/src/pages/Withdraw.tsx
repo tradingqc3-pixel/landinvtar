@@ -97,9 +97,15 @@ const Withdraw = () => {
     setError(null);
 
     try {
+      if (!selectedMethod) return;
+
       const selectedAccount = selectedMethod.type === 'bank'
         ? bankAccounts.find(b => b.id === selectedMethod.id)
         : upiIds.find(u => u.id === selectedMethod.id);
+
+      if (!selectedAccount) {
+        throw new Error('Selected payment method not found');
+      }
 
       const description = selectedMethod.type === 'bank'
         ? `Withdrawal to Bank (${(selectedAccount as BankAccount).bank_name})`
@@ -134,9 +140,11 @@ const Withdraw = () => {
     }
   };
 
-  const selectedData = selectedMethod?.type === 'bank'
-    ? bankAccounts.find(b => b.id === selectedMethod.id)
-    : upiIds.find(u => u.id === selectedMethod.id);
+  const selectedData = selectedMethod
+    ? (selectedMethod.type === 'bank'
+        ? bankAccounts.find(b => b.id === selectedMethod.id)
+        : upiIds.find(u => u.id === selectedMethod.id))
+    : null;
 
   if (loading) {
     return (

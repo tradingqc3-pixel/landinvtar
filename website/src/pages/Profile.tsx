@@ -335,7 +335,15 @@ const Profile = () => {
   );
 };
 
-const InfoItem = ({ label, value, icon: Icon, isEditing, onChange }: any) => (
+interface InfoItemProps {
+  label: string;
+  value: string;
+  icon: React.ElementType;
+  isEditing?: boolean;
+  onChange?: (v: string) => void;
+}
+
+const InfoItem = ({ label, value, icon: Icon, isEditing, onChange }: InfoItemProps) => (
   <div className="space-y-3">
     <div className="flex items-center gap-2 ml-4">
       <Icon size={14} className="text-slate-400" />
