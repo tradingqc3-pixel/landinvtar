@@ -113,7 +113,7 @@ const HowItWorksManager = () => {
       )}
 
       {success && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-6 rounded-[32px] flex items-center gap-4 text-emerald-600 animate-in slide-in-from-top-4">
+        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-6 rounded-[32px] flex items-center gap-4 text-emerald-600 animate-in slide-in-f[...]">
           <CheckCircle2 size={24} />
           <p className="font-bold text-sm">Instructional matrix updated successfully!</p>
         </div>
@@ -177,7 +177,7 @@ const HowItWorksManager = () => {
                         <select
                           value={formData.how_video_type}
                           onChange={(e) => setFormData({...formData, how_video_type: e.target.value})}
-                          className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white outline-none appearance-none cursor-pointer"
+                          className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white outline-none appearance-n[...]"
                         >
                            <option value="youtube">YouTube</option>
                            <option value="mp4">Direct MP4 URL</option>
@@ -189,7 +189,7 @@ const HowItWorksManager = () => {
                           type="text"
                           value={formData.how_video_text}
                           onChange={(e) => setFormData({...formData, how_video_text: e.target.value})}
-                          className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                          className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-no[...]"
                         />
                      </div>
                   </div>
@@ -200,7 +200,7 @@ const HowItWorksManager = () => {
                       type="text"
                       value={formData.how_video_url}
                       onChange={(e) => setFormData({...formData, how_video_url: e.target.value})}
-                      className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-mono text-xs dark:text-white transition-all outline-none"
+                      className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-mono text-xs dark:text-white transition-all outlin[...]"
                       placeholder="https://youtube.com/watch?v=..."
                     />
                   </div>
@@ -221,7 +221,7 @@ const HowItWorksManager = () => {
                     type="text"
                     value={formData.how_hero_image_url}
                     onChange={(e) => setFormData({...formData, how_hero_image_url: e.target.value})}
-                    className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-mono text-xs dark:text-white transition-all outline-none"
+                    className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-mono text-xs dark:text-white transition-all outline-[...]"
                   />
                </div>
 
@@ -256,7 +256,7 @@ const HowItWorksManager = () => {
                <button
                  onClick={handleSave}
                  disabled={saving}
-                 className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-[2px] text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-3 disabled:opacity-50"
+                 className="w-full py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-[2px] text-xs hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/30 flex [...]"
                >
                  {saving ? <RefreshCw size={20} className="animate-spin" /> : <Save size={20} />}
                  Sync Instructional Matrix
@@ -275,7 +275,7 @@ const HowItWorksManager = () => {
          <div className="relative aspect-video rounded-[32px] overflow-hidden border border-white/10 bg-slate-900 shadow-3xl z-10 group">
             {formData.how_video_url ? (
                <ReactPlayer
-                 url={formData.how_video_url}
+                 src={formData.how_video_url}
                  width="100%"
                  height="100%"
                  controls={true}
