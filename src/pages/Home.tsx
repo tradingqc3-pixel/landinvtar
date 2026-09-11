@@ -55,13 +55,13 @@ const Home = () => {
       <VideoModal
         isOpen={isVideoOpen}
         onClose={() => setIsVideoOpen(false)}
-        videoUrl={hero?.video_url || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+        videoUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
       />
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-32 pb-20 overflow-hidden bg-white dark:bg-slate-950">
         <div className="absolute inset-0 -z-10 opacity-30 dark:opacity-20 pointer-events-none">
-           <img src={hero?.image_url} className="w-full h-full object-cover blur-sm scale-110" />
+           <img src={hero?.background_image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"} className="w-full h-full object-cover blur-sm scale-110" alt="Hero background" />
         </div>
         <div className="absolute top-0 left-0 w-full h-full -z-10">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 blur-[120px]" />
@@ -110,7 +110,7 @@ const Home = () => {
           >
             <div className="relative rounded-[48px] overflow-hidden shadow-2xl border-8 border-white dark:border-slate-800/50 aspect-[4/5] md:aspect-square group">
               <img
-                src={hero?.image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"}
+                src={hero?.background_image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"}
                 alt="Premium Land"
                 className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-1000"
               />

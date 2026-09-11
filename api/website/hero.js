@@ -47,7 +47,6 @@ async function handler(req, res) {
         heroTitle: data.hero_title,
         description: data.description,
         backgroundImage: data.background_image_url,
-        videoUrl: data.video_url,
         ctaText: data.cta_text,
         ctaLink: data.cta_link
       }
@@ -56,7 +55,7 @@ async function handler(req, res) {
 
   // POST/PUT: Deploy or Create Local Configuration
   if (req.method === 'PUT' || req.method === 'POST') {
-    const { goldSubtitle, heroTitle, description, backgroundImage, videoUrl, ctaText, ctaLink } = req.body;
+    const { goldSubtitle, heroTitle, description, backgroundImage, ctaText, ctaLink } = req.body;
     const targetId = req.params?.id || req.query?.id;
 
     if (!heroTitle || !backgroundImage) {
@@ -69,7 +68,6 @@ async function handler(req, res) {
       hero_title: heroTitle,
       description: description,
       background_image_url: backgroundImage,
-      video_url: videoUrl,
       cta_text: ctaText,
       cta_link: ctaLink,
       updated_at: new Date().toISOString()
@@ -112,7 +110,6 @@ async function handler(req, res) {
         heroTitle: resultData.hero_title,
         description: resultData.description,
         backgroundImage: resultData.background_image_url,
-        videoUrl: resultData.video_url,
         ctaText: resultData.cta_text,
         ctaLink: resultData.cta_link
       }

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import SectionHeader from '../../components/SectionHeader';
-import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Video, Loader2, Zap, ShieldCheck } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Loader2, Zap, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 /**
@@ -19,7 +19,6 @@ const HeroBanner = () => {
     heroTitle: "Invest in Premium Land from ₹500",
     description: "Democratizing real estate ownership through fractional investment.",
     backgroundImage: "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
-    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     ctaText: "Start Investing",
     ctaLink: "/projects"
   };
@@ -31,7 +30,6 @@ const HeroBanner = () => {
     heroTitle: '',
     description: '',
     backgroundImage: '',
-    videoUrl: '',
     ctaText: '',
     ctaLink: ''
   });
@@ -71,7 +69,6 @@ const HeroBanner = () => {
           heroTitle: data.hero_title || '',
           description: data.description || '',
           backgroundImage: data.background_image_url || '',
-          videoUrl: data.video_url || '',
           ctaText: data.cta_text || '',
           ctaLink: data.cta_link || ''
         });
@@ -108,7 +105,6 @@ const HeroBanner = () => {
         hero_title: formData.heroTitle,
         description: formData.description,
         background_image_url: formData.backgroundImage,
-        video_url: formData.videoUrl,
         cta_text: formData.ctaText,
         cta_link: formData.ctaLink,
         updated_at: new Date().toISOString()
@@ -240,20 +236,6 @@ const HeroBanner = () => {
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">YouTube Strategy Link</label>
-              <div className="relative">
-                <Video className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <input
-                  type="text"
-                  value={formData.videoUrl}
-                  onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
-                  className="w-full pl-16 pr-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
-                  placeholder="https://www.youtube.com/watch?v=..."
-                />
-              </div>
-            </div>
-
             <div className="grid grid-cols-2 gap-6 pt-4">
               <div className="space-y-2">
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">CTA Button Text</label>
@@ -312,11 +294,6 @@ const HeroBanner = () => {
                <p className="text-lg text-slate-400 font-medium italic leading-relaxed max-w-lg">"{formData.description || "Democratizing real estate ownership through fractional investment. Secure, transparent, and high-yield land assets at your fingertips."}"</p>
                <div className="pt-4 flex gap-4">
                   <button className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20">{formData.ctaText || "Start Investing"}</button>
-                  {formData.videoUrl && (
-                    <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
-                      <Video size={20} />
-                    </div>
-                  )}
                </div>
             </div>
         </div>

@@ -14,7 +14,7 @@
     "build:website": "cd website && npm install && npm run build",
     "build:admin": "cd admin && npm install && npm run build",
     "start:backend": "node backend.js",
-    "build": "npm run build:website && npm run build:admin && rm -rf dist && mkdir dist && cp -r website/dist/* dist/ && mkdir -p dist/admin && cp -r admin/dist/* dist/admin/"
+    "build": "npm run build:website && npm run build:admin && node scripts/package-build.js"
   },
   "dependencies": {
     "@expo/metro-runtime": "~4.0.0",

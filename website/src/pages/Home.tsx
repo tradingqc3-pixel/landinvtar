@@ -55,7 +55,7 @@ const Home = () => {
       <VideoModal
         isOpen={isVideoOpen}
         onClose={() => setIsVideoOpen(false)}
-        videoUrl={hero?.video_url || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'}
+        videoUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
       />
 
       {/* Hero Section */}
