@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
-  ChevronRight, TrendingUp, ShieldCheck, Users,
-  Map, IndianRupee, ArrowUpRight, BarChart3,
-  Zap, CheckCircle2, RefreshCw, PlayCircle
+  ChevronRight, TrendingUp, ShieldCheck,
+  IndianRupee, ArrowUpRight, BarChart3,
+  Zap, RefreshCw, PlayCircle, Map
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { LandProject } from '../../../types/database';
+import type { LandProject, HeroBanner } from '../../../types/database';
 import VideoModal from '../components/VideoModal';
 import FAQSection from '../components/FAQSection';
 import TestimonialSection from '../components/TestimonialSection';
 
 const Home = () => {
   const [featuredProjects, setFeaturedProjects] = useState<LandProject[]>([]);
-  const [hero, setHero] = useState<any>(null);
+  const [hero, setHero] = useState<HeroBanner | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
 
@@ -26,7 +26,7 @@ const Home = () => {
     try {
       const [projectsRes, heroRes] = await Promise.all([
         supabase.from('land_projects').select('*').eq('is_active', true).eq('is_featured', true).order('featured_order', { ascending: true }).limit(3),
-        supabase.from('hero_settings').select('*').limit(1).maybeSingle()
+        supabase.from('hero_banner').select('*').eq('is_active', true).limit(1).maybeSingle()
       ]);
 
       if (projectsRes.error) throw projectsRes.error;
@@ -61,7 +61,7 @@ const Home = () => {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center pt-32 pb-20 overflow-hidden bg-white dark:bg-slate-950">
         <div className="absolute inset-0 -z-10 opacity-30 dark:opacity-20 pointer-events-none">
-           <img src={hero?.image_url} className="w-full h-full object-cover blur-sm scale-110" />
+           <img src={hero?.background_image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"} className="w-full h-full object-cover blur-sm scale-110" alt="Hero BG" />
         </div>
         <div className="absolute top-0 left-0 w-full h-full -z-10">
           <div className="absolute top-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-emerald-100/50 dark:bg-emerald-900/30 blur-[120px]" />
@@ -77,10 +77,10 @@ const Home = () => {
           >
             <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 rounded-full text-xs font-black uppercase tracking-[2px] border border-emerald-100 dark:border-emerald-800 shadow-sm shadow-emerald-600/5">
               <TrendingUp className="w-4 h-4" />
-              {hero?.subtitle || "India's #1 Land Investment Platform"}
+              {hero?.gold_subtitle || "India's #1 Land Investment Platform"}
             </div>
             <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white leading-[1.15] tracking-tight uppercase py-2">
-              {hero?.title || "Invest in Premium Land from ₹500"}
+              {hero?.hero_title || "Invest in Premium Land from ₹500"}
             </h1>
             <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg font-medium italic">
               "{hero?.description || "Democratizing real estate ownership through fractional investment."}"
@@ -110,14 +110,14 @@ const Home = () => {
           >
             <div className="relative rounded-[48px] overflow-hidden shadow-2xl border-8 border-white dark:border-slate-800/50 aspect-[4/5] md:aspect-square group">
               <img
-                src={hero?.image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"}
+                src={hero?.background_image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"}
                 alt="Premium Land"
                 className="w-full h-full object-cover scale-105 group-hover:scale-100 transition-transform duration-1000"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-transparent to-transparent" />
               <div className="absolute bottom-10 left-10 right-10 text-white space-y-2">
                 <p className="text-gold-400 font-bold uppercase tracking-[4px] text-xs">Primary Focus</p>
-                <h3 className="text-3xl font-black">{hero?.title?.split(' ').slice(-3).join(' ')}</h3>
+                <h3 className="text-3xl font-black">{hero?.hero_title?.split(' ').slice(-3).join(' ')}</h3>
                 <p className="text-slate-200 font-medium italic">High-growth corridor assets only.</p>
               </div>
             </div>

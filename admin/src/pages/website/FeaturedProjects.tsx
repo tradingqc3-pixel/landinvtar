@@ -9,6 +9,7 @@ const FeaturedProjects = () => {
   const [allProjects, setAllProjects] = useState<LandProject[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -16,40 +17,64 @@ const FeaturedProjects = () => {
     fetchFeatured();
   }, []);
 
+  /**
+   * REQUIREMENT: Fetch all featured projects from the land_projects table
+   * where is_featured = true, ordered by featured_order ASC.
+   */
   const fetchFeatured = async () => {
     setLoading(true);
+    setSuccess(false);
     try {
       const { data, error } = await supabase
         .from('land_projects')
         .select('*')
         .eq('is_featured', true)
         .order('featured_order', { ascending: true });
-      if (error) throw error;
+
+      if (error) {
+        console.error('[Supabase Error]:', error);
+        throw error;
+      }
       setProjects(data || []);
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('[CMS Sync Error]: Failed to synchronize featured projects matrix.', err.message);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * REQUIREMENT: Add Asset logic - selects from inventory and saves to Supabase.
+   */
   const fetchAllForSearch = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch active projects that are NOT already in the featured buffer
+      const featuredIds = projects.map(p => p.id);
+
+      let query = supabase
         .from('land_projects')
         .select('*')
-        .eq('is_active', true)
-        .ilike('name', `%${searchTerm}%`);
+        .eq('is_active', true);
+
+      if (searchTerm) {
+        query = query.ilike('name', `%${searchTerm}%`);
+      }
+
+      const { data, error } = await query.limit(20);
+
       if (error) throw error;
-      setAllProjects(data || []);
+
+      // Client-side filter to ensure we don't show already featured projects in search
+      const unfeatured = (data || []).filter(p => !featuredIds.includes(p.id));
+      setAllProjects(unfeatured);
     } catch (err) {
-      console.error(err);
+      console.error('[Search Error]:', err);
     }
   };
 
   useEffect(() => {
     if (isSearchOpen) fetchAllForSearch();
-  }, [searchTerm, isSearchOpen]);
+  }, [searchTerm, isSearchOpen, projects]);
 
   const addFeatured = async (project: LandProject) => {
     try {
@@ -59,9 +84,10 @@ const FeaturedProjects = () => {
         .eq('id', project.id);
       if (error) throw error;
       setIsSearchOpen(false);
-      fetchFeatured();
+      setSearchTerm('');
+      await fetchFeatured();
     } catch (err) {
-      console.error(err);
+      console.error('[CMS Error]: Failed to anchor asset.', err);
     }
   };
 
@@ -72,25 +98,31 @@ const FeaturedProjects = () => {
         .update({ is_featured: false, featured_order: null })
         .eq('id', id);
       if (error) throw error;
-      fetchFeatured();
+      await fetchFeatured();
     } catch (err) {
-      console.error(err);
+      console.error('[CMS Error]: Failed to evict asset.', err);
     }
   };
 
+  /**
+   * REQUIREMENT: Lock Sequence - update featured_order in Supabase.
+   */
   const saveOrder = async () => {
     setSaving(true);
+    setSuccess(false);
     try {
-      // For simplicity, we update sequentially
+      // Sequential update to lock in the visual order
       for (let i = 0; i < projects.length; i++) {
-        await supabase
+        const { error } = await supabase
           .from('land_projects')
           .update({ featured_order: i })
           .eq('id', projects[i].id);
+        if (error) throw error;
       }
-      alert('Featured order locked in successfully!');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      console.error(err);
+      console.error('[CMS Error]: Failed to lock sequence.', err);
     } finally {
       setSaving(false);
     }
@@ -98,7 +130,7 @@ const FeaturedProjects = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <SectionHeader
           title="Featured Projects"
           subtitle="Anchor the most premium land assets to the website home screen."
@@ -114,13 +146,20 @@ const FeaturedProjects = () => {
           <button
             onClick={saveOrder}
             disabled={saving || projects.length === 0}
-            className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50"
+            className="flex items-center gap-2 px-8 py-4 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-500/20 disabled:opacity-50 min-w-[160px] justify-center"
           >
-            {saving ? <RefreshCw size={16} className="animate-spin" /> : <Save size={16} />}
-            Lock Sequence
+            {saving ? <RefreshCw size={16} className="animate-spin" /> : success ? <CheckCircle2 size={16} /> : <Save size={16} />}
+            {saving ? 'Locking...' : success ? 'Sequence Locked' : 'Lock Sequence'}
           </button>
         </div>
       </div>
+
+      {success && (
+        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-4 rounded-2xl flex items-center gap-3 text-emerald-600 text-sm font-bold animate-in slide-in-from-top-2">
+           <CheckCircle2 size={18} />
+           Featured project order synchronized successfully!
+        </div>
+      )}
 
       {loading ? (
         <div className="flex flex-col items-center justify-center h-96 bg-white dark:bg-slate-900 rounded-[48px] border border-slate-100 dark:border-slate-800 shadow-sm">

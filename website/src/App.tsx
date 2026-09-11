@@ -16,6 +16,7 @@ import Withdraw from './pages/Withdraw';
 import Profile from './pages/Profile';
 import Settings from './pages/Settings';
 import WhatsAppButton from './components/WhatsAppButton';
+import SEO from './components/SEO';
 import { useAuth } from './context/AuthContext';
 import { useBranding } from './context/BrandingContext';
 import { motion } from 'framer-motion';
@@ -48,6 +49,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300 selection:bg-emerald-100 dark:selection:bg-emerald-900 selection:text-emerald-900 dark:selection:text-emerald-100">
+      <SEO />
       <Navbar />
       <main>
         <Routes>

@@ -14,8 +14,19 @@ interface BrandingSettings {
   corporate_address: string;
   footer_description: string;
   footer_copyright: string;
+  // SEO
   seo_title: string;
   seo_description: string;
+  seo_keywords: string;
+  canonical_url: string;
+  og_title: string;
+  og_description: string;
+  og_image: string;
+  twitter_title: string;
+  twitter_description: string;
+  twitter_image: string;
+  twitter_card: string;
+  organization_schema: any;
 }
 
 interface BrandingContextType {
@@ -40,7 +51,17 @@ const defaultSettings: BrandingSettings = {
   footer_description: 'Democratizing land ownership through fractional investment.',
   footer_copyright: '© 2026 InvestLand Financial Services Pvt Ltd. All rights reserved.',
   seo_title: 'InvestLand — Premium Fractional Land Investment',
-  seo_description: 'Invest in premium land from ₹500. InvestLand makes real estate investment accessible.'
+  seo_description: 'Invest in premium land from ₹500. InvestLand makes real estate investment accessible.',
+  seo_keywords: 'land investment, fractional ownership, real estate india, investland',
+  canonical_url: 'https://investland.app',
+  og_title: '',
+  og_description: '',
+  og_image: '',
+  twitter_title: '',
+  twitter_description: '',
+  twitter_image: '',
+  twitter_card: 'summary_large_image',
+  organization_schema: null
 };
 
 export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -49,7 +70,6 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const fetchBranding = async () => {
     try {
-      // Fetch from branding_settings, app_settings, seo_settings, and footer_settings
       const [brandingRes, appRes, seoRes, footerRes] = await Promise.all([
         supabase.from('branding_settings').select('*').limit(1).maybeSingle(),
         supabase.from('app_settings').select('*').limit(1).maybeSingle(),
@@ -72,8 +92,21 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         corporate_address: appData?.headquarters_address || appData?.corporate_address || defaultSettings.corporate_address,
         footer_description: footerData?.description || appData?.platform_description || defaultSettings.footer_description,
         footer_copyright: footerData?.copyright || defaultSettings.footer_copyright,
+
+        // SEO overrides
         seo_title: seoData?.meta_title || defaultSettings.seo_title,
         seo_description: seoData?.meta_description || defaultSettings.seo_description,
+        seo_keywords: seoData?.keywords || defaultSettings.seo_keywords,
+        canonical_url: seoData?.canonical_url || defaultSettings.canonical_url,
+        og_title: seoData?.og_title || '',
+        og_description: seoData?.og_description || '',
+        og_image: seoData?.og_image || '',
+        twitter_title: seoData?.twitter_title || '',
+        twitter_description: seoData?.twitter_description || '',
+        twitter_image: seoData?.twitter_image || '',
+        twitter_card: seoData?.twitter_card || 'summary_large_image',
+        organization_schema: seoData?.organization_schema || null,
+
         // Visual branding takes precedence
         logo_url: brandingData?.logo_url || appData?.logo_url || defaultSettings.logo_url,
         favicon_url: brandingData?.favicon_url || seoData?.favicon_url || appData?.favicon_url || defaultSettings.favicon_url,
@@ -83,20 +116,7 @@ export const BrandingProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       setSettings(finalSettings);
 
-      // Update Favicon
-      if (finalSettings.favicon_url) {
-        const link = document.querySelector("link[rel~='icon']") as HTMLLinkElement;
-        if (link) {
-          link.href = finalSettings.favicon_url;
-        } else {
-          const newLink = document.createElement('link');
-          newLink.rel = 'icon';
-          newLink.href = finalSettings.favicon_url;
-          document.head.appendChild(newLink);
-        }
-      }
-
-      // Update Theme Colors (CSS Variables)
+      // Dynamic Color Variables
       if (finalSettings.primary_color) {
         document.documentElement.style.setProperty('--color-primary', finalSettings.primary_color);
       }

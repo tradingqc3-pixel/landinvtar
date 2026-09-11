@@ -13,6 +13,7 @@
     "web": "expo start --web",
     "build:website": "cd website && npm install && npm run build",
     "build:admin": "cd admin && npm install && npm run build",
+    "start:backend": "node backend.js",
     "build": "npm run build:website && npm run build:admin && rm -rf dist && mkdir dist && cp -r website/dist/* dist/ && mkdir -p dist/admin && cp -r admin/dist/* dist/admin/"
   },
   "dependencies": {
@@ -27,7 +28,9 @@
     "@supabase/supabase-js": "^2.46.1",
     "base64-arraybuffer": "^1.0.2",
     "clsx": "^2.1.1",
+    "cors": "^2.8.5",
     "dotenv": "^16.4.5",
+    "express": "^4.19.2",
     "expo": "~52.0.25",
     "expo-asset": "~11.0.1",
     "expo-auth-session": "~6.0.2",

@@ -147,6 +147,56 @@ export interface TaxReport {
   created_at: string;
 }
 
+export interface HeroBanner {
+  id: string;
+  gold_subtitle: string;
+  hero_title: string;
+  description: string;
+  background_image_url: string;
+  video_url: string;
+  cta_text: string;
+  cta_link: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HowItWorksSection {
+  id: string;
+  section_name: string;
+  subtitle: string | null;
+  title: string | null;
+  description: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+  button_enabled: boolean;
+  button_text: string | null;
+  button_link: string | null;
+  video_button_enabled: boolean;
+  video_button_text: string | null;
+  video_url: string | null;
+  video_type: string | null;
+  video_thumbnail: string | null;
+  video_open_mode: string | null;
+  layout: string;
+  text_alignment: string;
+  background_type: string;
+  background_color: string | null;
+  show_image: boolean;
+  show_button: boolean;
+  show_video_button: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AppSettings {
+  id: string;
+  platform_name: string;
+  [key: string]: any;
+}
+
 export function computeCurrentValue(amount: number, roiRate: number, createdAt: string): number {
   const msPerYear = 365.25 * 24 * 60 * 60 * 1000;
   const yearsElapsed = (Date.now() - new Date(createdAt).getTime()) / msPerYear;

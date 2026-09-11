@@ -26,7 +26,7 @@ const Home = () => {
     try {
       const [projectsRes, heroRes] = await Promise.all([
         supabase.from('land_projects').select('*').eq('is_active', true).eq('is_featured', true).order('featured_order', { ascending: true }).limit(3),
-        supabase.from('hero_settings').select('*').limit(1).maybeSingle()
+        supabase.from('hero_banner').select('*').eq('is_active', true).limit(1).maybeSingle()
       ]);
 
       if (projectsRes.error) throw projectsRes.error;

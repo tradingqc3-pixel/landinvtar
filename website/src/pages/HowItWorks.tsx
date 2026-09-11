@@ -1,42 +1,53 @@
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  UserPlus, Search, IndianRupee, TrendingUp,
-  ShieldCheck, FileText, ChevronRight, PlayCircle, CheckCircle2,
-  RefreshCw, Rocket, Activity, CreditCard, Shield, Map
+  ShieldCheck, RefreshCw, X, AlertCircle, Layout, Play, Zap, ChevronRight, Activity, Image as ImageIcon, Video
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import VideoModal from '../components/VideoModal';
+import ReactPlayer from 'react-player';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
 
-// Icon mapping for dynamic steps
-const iconMap: any = {
-  UserPlus, Search, IndianRupee, TrendingUp,
-  FileText, Rocket, Activity, CreditCard,
-  Shield, Map
-};
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+interface HowItWorksStep {
+  id: string;
+  step_number: number;
+  title: string;
+  description: string;
+  image_url: string | null;
+  video_url: string | null;
+  display_order: number;
+}
 
 const HowItWorks = () => {
-  const [isVideoOpen, setIsVideoOpen] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [settings, setSettings] = useState<any>(null);
-  const [steps, setSteps] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [steps, setSteps] = useState<HowItWorksStep[]>([]);
+  const [activeVideo, setActiveVideo] = useState<{ url: string } | null>(null);
+  const [activeImage, setActiveImage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchData();
+    fetchSteps();
   }, []);
 
-  const fetchData = async () => {
+  const fetchSteps = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const [settingsRes, stepsRes] = await Promise.all([
-        supabase.from('app_settings').select('*').limit(1).maybeSingle(),
-        supabase.from('how_it_works_steps').select('*').order('order_index', { ascending: true })
-      ]);
+      const { data, error: fetchError } = await supabase
+        .from('how_it_works')
+        .select('*')
+        .order('display_order', { ascending: true });
 
-      if (settingsRes.data) setSettings(settingsRes.data);
-      if (stepsRes.data) setSteps(stepsRes.data);
-    } catch (err) {
-      console.error('Error fetching instructions:', err);
+      if (fetchError) throw fetchError;
+      setSteps(data || []);
+    } catch (err: any) {
+      console.error('How It Works error:', err);
+      setError(err.message || 'Synchronization failure.');
     } finally {
       setLoading(false);
     }
@@ -44,186 +55,238 @@ const HowItWorks = () => {
 
   if (loading) {
      return (
-        <div className="pt-32 flex flex-col items-center justify-center min-h-[60vh] gap-4 bg-white dark:bg-slate-950">
+        <div className="pt-32 flex flex-col items-center justify-center min-h-[80vh] gap-6 bg-white dark:bg-slate-950">
            <RefreshCw className="w-12 h-12 text-emerald-600 animate-spin" />
-           <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Syncing Instructional Buffer...</p>
+           <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Syncing Instructional Ledger...</p>
         </div>
      );
   }
 
-  const heroSettings = {
-    title: settings?.how_hero_title || 'Investment Simplified.',
-    subtitle: settings?.how_hero_subtitle || 'The Investment Loop',
-    description: settings?.how_hero_description || "We've broken down the barriers of traditional real estate. No middlemen, no bulky paperwork, no massive down-payments.",
-    image_url: settings?.how_hero_image_url || 'https://images.unsplash.com/photo-1560520653-9e0e4c89eb11?q=80&w=1000',
-    cta_text: settings?.how_cta_text || 'Get Started Now',
-    video_text: settings?.how_video_text || 'Watch Video',
-    video_url: settings?.how_video_url || 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
-  };
+  if (error) {
+    return (
+      <div className="pt-32 flex flex-col items-center justify-center min-h-[80vh] bg-white dark:bg-slate-950 px-6">
+        <div className="max-w-md w-full bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 p-10 rounded-[48px] text-center space-y-6">
+           <div className="w-20 h-20 bg-white dark:bg-slate-900 rounded-3xl flex items-center justify-center mx-auto text-rose-500 shadow-xl">
+              <AlertCircle size={40} />
+           </div>
+           <div className="space-y-2">
+              <h3 className="text-xl font-black text-slate-900 dark:text-white uppercase tracking-tight">Synchronization Error</h3>
+              <p className="text-slate-500 text-sm font-medium italic">"{error}"</p>
+           </div>
+           <button
+             onClick={fetchSteps}
+             className="px-10 py-4 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:scale-105 transition-all shadow-xl"
+           >
+             Retry Handshake
+           </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (steps.length === 0) {
+    return (
+      <div className="pt-32 flex flex-col items-center justify-center min-h-[80vh] bg-white dark:bg-slate-950 px-6 text-center">
+        <div className="max-w-2xl w-full space-y-10">
+           <div className="w-24 h-24 bg-emerald-50 dark:bg-emerald-900/20 rounded-[32px] flex items-center justify-center mx-auto text-emerald-500 shadow-inner">
+              <Layout size={48} />
+           </div>
+           <div className="space-y-4">
+              <h3 className="text-3xl lg:text-4xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none">Content coming soon</h3>
+              <p className="text-slate-500 dark:text-slate-400 text-lg font-medium italic leading-relaxed">
+                We're currently updating our investment guide. Please check back shortly or visit our dashboard to get started immediately.
+              </p>
+           </div>
+           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                to="/register"
+                className="w-full sm:w-auto px-12 py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-widest text-xs hover:bg-emerald-700 transition-all shadow-2xl"
+              >
+                Get Started
+              </Link>
+           </div>
+        </div>
+      </div>
+    );
+  }
+
+  const Player = ReactPlayer as any;
 
   return (
-    <div className="pt-32 pb-32 overflow-hidden bg-white dark:bg-slate-950 transition-colors duration-300">
-      <VideoModal
-        isOpen={isVideoOpen}
-        onClose={() => setIsVideoOpen(false)}
-        videoUrl={heroSettings.video_url}
-      />
+    <div className="bg-white dark:bg-slate-950 transition-colors duration-300 min-h-screen pt-32 pb-20">
 
-      {/* Hero Section */}
-      <section className="mb-32 relative">
-         <div className="absolute top-0 right-0 w-[40%] h-[40%] bg-emerald-100/30 dark:bg-emerald-900/10 blur-[100px] -z-10" />
-         <div className="max-container px-6 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            <div className="space-y-8">
-              <h2 className="text-gold-500 font-black uppercase tracking-[4px] text-sm italic">{heroSettings.subtitle}</h2>
-              <h1 className="text-4xl sm:text-6xl lg:text-7xl font-black text-slate-900 dark:text-white tracking-tighter leading-tight uppercase">{heroSettings.title}</h1>
-              <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg font-medium italic">
-                "{heroSettings.description}"
-              </p>
-              <div className="flex gap-4">
-                <Link to="/register" className="px-10 py-5 bg-slate-900 dark:bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-black dark:hover:bg-emerald-700 transition-all shadow-2xl">{heroSettings.cta_text}</Link>
-                <button
-                  onClick={() => setIsVideoOpen(true)}
-                  className="flex items-center gap-2 px-8 py-5 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[10px] hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
-                >
-                  <PlayCircle className="w-5 h-5" /> {heroSettings.video_text}
-                </button>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="relative rounded-[64px] overflow-hidden shadow-2xl border-4 border-white dark:border-slate-800 aspect-square">
-                 <img src={heroSettings.image_url} className="w-full h-full object-cover" alt="How It Works" />
-                 <div className="absolute inset-0 bg-emerald-600/10 mix-blend-overlay" />
-              </div>
-              <motion.div
-                animate={{ x: [0, 10, 0] }}
-                transition={{ repeat: Infinity, duration: 4 }}
-                className="absolute -top-10 -left-10 bg-white dark:bg-slate-900 p-8 rounded-3xl shadow-3xl border border-slate-50 dark:border-slate-800 flex items-center gap-6"
+      {/* Video Overlay Modal */}
+      <AnimatePresence>
+        {activeVideo && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveVideo(null)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl cursor-pointer"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="relative w-full max-w-6xl aspect-video bg-black rounded-[48px] overflow-hidden shadow-[0_0_100px_rgba(0,0,0,0.5)] border border-white/10 z-10"
+            >
+              <button
+                onClick={() => setActiveVideo(null)}
+                className="absolute top-6 right-6 z-20 p-4 bg-white/10 hover:bg-rose-600 backdrop-blur-md rounded-full text-white transition-all shadow-xl group"
               >
-                 <div className="w-16 h-16 bg-emerald-600 rounded-2xl flex items-center justify-center text-white">
-                   <ShieldCheck className="w-8 h-8" />
-                 </div>
-                 <div>
-                   <p className="text-2xl font-black text-slate-900 dark:text-white">100% Secure</p>
-                   <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Asset-Backed Ledger</p>
-                 </div>
-              </motion.div>
-            </div>
-         </div>
-      </section>
+                <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+              </button>
 
-      {/* Steps Section */}
-      <section className="bg-slate-950 dark:bg-slate-900 py-32 text-white overflow-hidden relative">
-        <div className="max-container px-6 space-y-24">
-           <div className="max-w-3xl space-y-6">
-              <h2 className="text-gold-500 font-black uppercase tracking-[4px] text-sm italic underline underline-offset-8">Step-by-Step Guide</h2>
-              <h3 className="text-5xl lg:text-6xl font-black tracking-tight leading-tight uppercase">Your path to <br />becoming a <span className="text-emerald-500 italic">Landowner</span></h3>
-           </div>
-
-           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
-              <div className="hidden lg:block absolute top-12 left-0 w-full h-0.5 bg-slate-800 dark:bg-slate-700 -z-0" />
-
-              {steps.map((step, i) => {
-                const Icon = iconMap[step.icon] || CheckCircle2;
-                return (
-                  <motion.div
-                    key={step.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.1 }}
-                    viewport={{ once: true }}
-                    className="space-y-8 relative z-10 group"
-                  >
-                     <div className="w-24 h-24 rounded-[32px] bg-slate-900 dark:bg-slate-800 border-2 border-slate-800 dark:border-slate-700 text-emerald-500 flex items-center justify-center shadow-2xl group-hover:scale-110 group-hover:border-emerald-500 transition-all duration-500">
-                       <Icon className="w-10 h-10" />
-                     </div>
-                     <div className="space-y-4">
-                       <div className="flex items-center gap-4">
-                         <span className="text-4xl font-black text-slate-800 dark:text-slate-700">0{i+1}</span>
-                         <h4 className="text-2xl font-black uppercase tracking-tight">{step.title}</h4>
-                       </div>
-                       <p className="text-slate-400 dark:text-slate-500 font-medium leading-relaxed italic text-lg">
-                         "{step.description}"
-                       </p>
-                     </div>
-                  </motion.div>
-                );
-              })}
-           </div>
-        </div>
-      </section>
-
-      {/* Technology Section */}
-      <section className="py-32 bg-white dark:bg-slate-950">
-         <div className="max-container px-6 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-            <div className="order-2 lg:order-1">
-               <div className="bg-slate-50 dark:bg-slate-900 rounded-[48px] p-12 space-y-12 border border-slate-100 dark:border-slate-800 shadow-sm">
-                  <div className="flex items-center gap-8">
-                     <div className="w-20 h-20 bg-white dark:bg-slate-800 rounded-3xl flex items-center justify-center text-emerald-600 shadow-xl border border-emerald-50 dark:border-emerald-900/30">
-                        <FileText className="w-10 h-10" />
-                     </div>
-                     <div className="space-y-1">
-                       <h4 className="text-2xl font-black text-slate-900 dark:text-white leading-tight uppercase">Digital Trust Protocol</h4>
-                       <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Powered by Smart Contracts</p>
-                     </div>
-                  </div>
-
-                  <div className="space-y-6">
-                    <p className="text-lg text-slate-600 dark:text-slate-400 leading-relaxed font-medium italic">
-                      "Every fraction you buy is linked to a legal entity (SPV) that owns the land. Your ownership is digitally recorded on a secure ledger, making it immutable and transparent."
-                    </p>
-                    <ul className="space-y-4">
-                       {[
-                         "Automated dividend distributions",
-                         "Secondary marketplace for liquidity",
-                         "Instant digital ownership certificates",
-                         "Transparent tax reporting"
-                       ].map((item, i) => (
-                         <li key={i} className="flex items-center gap-3 text-slate-900 dark:text-white font-black uppercase tracking-widest text-[9px]">
-                           <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                           {item}
-                         </li>
-                       ))}
-                    </ul>
-                  </div>
-               </div>
-            </div>
-
-            <div className="space-y-8 order-1 lg:order-2">
-               <h2 className="text-gold-600 font-black uppercase tracking-[4px] text-sm">Under the hood</h2>
-               <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight uppercase">Advanced <br />Security for <br /><span className="text-emerald-600 italic">Peace of Mind.</span></h3>
-               <p className="text-xl text-slate-500 dark:text-slate-400 font-medium max-w-md italic">
-                 "We've integrated top-tier banking infrastructure and legal audit systems to ensure your capital is always safe."
-               </p>
-               <div className="pt-4">
-                 <Link to="/about" className="group inline-flex items-center gap-3 font-black uppercase tracking-widest text-[10px] text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 transition-colors">
-                    Learn about our legal structure
-                    <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-sm">
-                      <ChevronRight className="w-5 h-5" />
-                    </div>
-                 </Link>
-               </div>
-            </div>
-         </div>
-      </section>
-
-      {/* CTA section */}
-      <section className="py-20">
-        <div className="max-container px-6">
-          <div className="max-w-7xl mx-auto bg-slate-900 dark:bg-slate-900/50 rounded-[64px] p-16 text-center text-white relative overflow-hidden border dark:border-slate-800 shadow-3xl">
-           <div className="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5" />
-           <div className="relative z-10 space-y-8">
-             <h3 className="text-4xl lg:text-5xl font-black tracking-tight leading-tight italic uppercase">Still have questions?</h3>
-             <p className="text-lg text-slate-400 max-w-xl mx-auto font-medium italic opacity-80">
-               "Our investment specialists are here to guide you through your first fractional land purchase."
-             </p>
-             <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                <Link to="/contact" className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-xl shadow-emerald-600/20">Talk to Specialist</Link>
-                <Link to="/projects" className="px-10 py-5 bg-white dark:bg-slate-800 text-slate-900 dark:text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 dark:hover:bg-slate-700 transition-all shadow-sm">Browse Opportunities</Link>
-             </div>
-           </div>
+              <div className="w-full h-full">
+                <Player
+                  url={activeVideo.url}
+                  width="100%"
+                  height="100%"
+                  playing={true}
+                  controls={true}
+                />
+              </div>
+            </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Image Lightbox Modal */}
+      <AnimatePresence>
+        {activeImage && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setActiveImage(null)}
+              className="absolute inset-0 bg-slate-950/90 backdrop-blur-xl cursor-pointer"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 40 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 40 }}
+              className="relative w-full max-w-6xl z-10 flex items-center justify-center"
+            >
+              <button
+                onClick={() => setActiveImage(null)}
+                className="absolute top-[-50px] right-0 md:top-[-60px] p-4 text-white hover:text-rose-500 transition-colors bg-white/10 backdrop-blur-md rounded-full"
+              >
+                <X className="w-6 h-6" />
+              </button>
+
+              <div className="bg-slate-900 rounded-[32px] overflow-hidden shadow-2xl border border-white/10 max-h-[85vh] w-auto">
+                <img
+                  src={activeImage}
+                  className="w-full h-full object-contain max-h-[85vh]"
+                  alt="Full view"
+                />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <div className="max-container px-6">
+        <div className="max-w-4xl mx-auto text-center space-y-8 mb-24">
+           <div className="inline-flex items-center gap-3 px-6 py-2.5 bg-emerald-500/10 text-emerald-500 rounded-full text-[10px] md:text-[11px] font-black uppercase tracking-[4px] border border-emerald-500/20 shadow-sm">
+              <Zap size={14} className="fill-current" />
+              Process Blueprint
+           </div>
+           <h1 className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter uppercase leading-none">
+              How InvestLand <span className="text-emerald-600">Works</span>
+           </h1>
+           <p className="text-xl text-slate-500 dark:text-slate-400 font-medium italic max-w-2xl mx-auto">
+              "Discover land opportunities, review project details, and manage your investment from one place."
+           </p>
         </div>
+
+        <div className="space-y-12">
+          {steps.map((step, idx) => (
+            <motion.div
+              key={step.id}
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="bg-white dark:bg-slate-900 rounded-[48px] p-10 md:p-16 border border-slate-100 dark:border-slate-800 shadow-xl group hover:border-emerald-500/30 transition-all"
+            >
+              <div className="flex flex-col lg:flex-row gap-16 items-center">
+                 <div className="flex-1 space-y-8">
+                    <div className="flex items-center gap-6">
+                       <div className="w-16 h-16 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-3xl font-black shadow-lg shadow-emerald-600/20">
+                          {step.step_number}
+                       </div>
+                       <h2 className="text-3xl md:text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tight">
+                          {step.title}
+                       </h2>
+                    </div>
+                    <p className="text-lg text-slate-500 dark:text-slate-400 leading-relaxed font-medium italic">
+                       "{step.description}"
+                    </p>
+
+                    <div className="flex flex-wrap gap-4 pt-4">
+                       {step.video_url && (
+                          <button
+                            onClick={() => setActiveVideo({ url: step.video_url || '' })}
+                            className="flex items-center gap-3 px-8 h-[48px] bg-emerald-600 text-white rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20 active:scale-95"
+                          >
+                            <Video size={18} fill="currentColor" /> Watch Video
+                          </button>
+                       )}
+                       {step.image_url && (
+                          <button
+                            onClick={() => setActiveImage(step.image_url)}
+                            className="flex items-center gap-3 px-8 h-[48px] bg-transparent text-emerald-600 border-2 border-emerald-600 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-emerald-50 dark:hover:bg-emerald-900/10 transition-all active:scale-95"
+                          >
+                            <ImageIcon size={18} /> View Image
+                          </button>
+                       )}
+                    </div>
+                 </div>
+
+                 {step.image_url && (
+                    <div className="w-full lg:w-1/3 aspect-square rounded-[40px] overflow-hidden border-8 border-slate-50 dark:border-slate-800 shadow-2xl relative">
+                       <img
+                         src={step.image_url}
+                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                         alt={step.title}
+                       />
+                       <div className="absolute inset-0 bg-emerald-600/5 mix-blend-overlay" />
+                    </div>
+                 )}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      {/* Trust Markers Section */}
+      <section className="py-24 mt-24 bg-slate-900 text-white">
+         <div className="max-container px-6 grid grid-cols-2 md:grid-cols-4 gap-12 text-center">
+            <div className="space-y-2">
+               <ShieldCheck className="w-10 h-10 text-emerald-500 mx-auto" />
+               <p className="text-2xl font-black">100%</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Legal Verification</p>
+            </div>
+            <div className="space-y-2">
+               <Activity className="w-10 h-10 text-emerald-500 mx-auto" />
+               <p className="text-2xl font-black">18.5%</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Avg. Annual ROI</p>
+            </div>
+            <div className="space-y-2">
+               <Zap className="w-10 h-10 text-emerald-500 mx-auto" />
+               <p className="text-2xl font-black">₹500</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Min. Entry</p>
+            </div>
+            <div className="space-y-2">
+               <Layout className="w-10 h-10 text-emerald-500 mx-auto" />
+               <p className="text-2xl font-black">24/7</p>
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Asset Tracking</p>
+            </div>
+         </div>
       </section>
     </div>
   );

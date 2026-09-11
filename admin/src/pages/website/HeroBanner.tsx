@@ -1,82 +1,139 @@
 import React, { useEffect, useState } from 'react';
 import SectionHeader from '../../components/SectionHeader';
-import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Video } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Video, Loader2, Zap, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+/**
+ * Hero Banner CMS - Configuration Terminal
+ * Handles narrative mapping, visual asset deployment, and real-time snapshot preview.
+ */
 const HeroBanner = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [settingsId, setSettingsId] = useState<string | null>(null);
 
+  // Default values following the platform's visual identity
+  const DEFAULT_HERO = {
+    goldSubtitle: "India's #1 Land Investment Platform",
+    heroTitle: "Invest in Premium Land from ₹500",
+    description: "Democratizing real estate ownership through fractional investment.",
+    backgroundImage: "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
+    videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ctaText: "Start Investing",
+    ctaLink: "/projects"
+  };
+
+  // Form State
   const [formData, setFormData] = useState({
-    title: '',
-    subtitle: '',
+    id: '',
+    goldSubtitle: '',
+    heroTitle: '',
     description: '',
-    image_url: '',
-    cta_text: '',
-    cta_link: '',
-    video_url: ''
+    backgroundImage: '',
+    videoUrl: '',
+    ctaText: '',
+    ctaLink: ''
   });
 
   useEffect(() => {
     fetchHeroSettings();
   }, []);
 
+  /**
+   * REQUIREMENT: Fetch active hero configuration directly from Supabase
+   * bypassing the backend terminal for direct cloud synchronization.
+   */
   const fetchHeroSettings = async () => {
     setLoading(true);
+    setError(null);
     try {
-      const { data, error: fetchError } = await supabase
-        .from('hero_settings')
+      // 1. First, check if the table exists by doing a simple count or select
+      // This helps verify schema cache synchronization
+      const { data, error: sbError } = await supabase
+        .from('hero_banner')
         .select('*')
+        .eq('is_active', true)
         .limit(1)
         .maybeSingle();
 
-      if (fetchError) throw fetchError;
+      if (sbError) {
+        if (sbError.code === 'PGRST204' || sbError.message?.includes('schema cache')) {
+          throw new Error("Supabase Schema Error: The 'hero_banner' table was not found in the 'public' schema. This often happens if the migration hasn't been executed or if the table was named 'hero_banners' in an older version. Please run the SQL in 'supabase/migrations/20260813300000_definitive_hero_fix.sql' in your Supabase SQL Editor to resolve this.");
+        }
+        throw sbError;
+      }
 
       if (data) {
-        setSettingsId(data.id);
         setFormData({
-          title: data.title || '',
-          subtitle: data.subtitle || '',
+          id: data.id || '',
+          goldSubtitle: data.gold_subtitle || '',
+          heroTitle: data.hero_title || '',
           description: data.description || '',
-          image_url: data.image_url || '',
-          cta_text: data.cta_text || '',
-          cta_link: data.cta_link || '',
-          video_url: data.video_url || ''
+          backgroundImage: data.background_image_url || '',
+          videoUrl: data.video_url || '',
+          ctaText: data.cta_text || '',
+          ctaLink: data.cta_link || ''
+        });
+      } else {
+        // Fallback to default schema if no record exists
+        setFormData({
+          id: '',
+          ...DEFAULT_HERO
         });
       }
     } catch (err: any) {
-      console.error('Fetch error:', err);
-      setError('Failed to load hero configurations.');
+      console.error('[CMS Cloud Error]:', err);
+      setError(err.message || `Cloud Synchronization failure: ${err.message}`);
     } finally {
       setLoading(false);
     }
   };
 
+  /**
+   * Requirement: Direct Persistence logic to Supabase
+   */
   const handleSave = async () => {
+    if (!formData.heroTitle || !formData.backgroundImage) {
+      setError('Hero Title and Background Image are mandatory attributes.');
+      return;
+    }
+
     setSaving(true);
     setSuccess(false);
     setError(null);
     try {
       const payload = {
-        ...formData,
+        gold_subtitle: formData.goldSubtitle,
+        hero_title: formData.heroTitle,
+        description: formData.description,
+        background_image_url: formData.backgroundImage,
+        video_url: formData.videoUrl,
+        cta_text: formData.ctaText,
+        cta_link: formData.ctaLink,
         updated_at: new Date().toISOString()
       };
 
-      const { error: upsertError } = await supabase
-        .from('hero_settings')
-        .upsert(settingsId ? { id: settingsId, ...payload } : payload);
+      let sbResult;
+      if (formData.id) {
+        sbResult = await supabase
+          .from('hero_banner')
+          .update(payload)
+          .eq('id', formData.id);
+      } else {
+        sbResult = await supabase
+          .from('hero_banner')
+          .insert([{ ...payload, is_active: true }]);
+      }
 
-      if (upsertError) throw upsertError;
+      if (sbResult.error) throw sbResult.error;
 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-      fetchHeroSettings();
+      await fetchHeroSettings();
     } catch (err: any) {
-      console.error('Save error:', err);
-      setError(err.message || 'Synchronization failure.');
+      console.error('[CMS Cloud Save Error]:', err);
+      setError(`Deployment failure: ${err.message}`);
     } finally {
       setSaving(false);
     }
@@ -86,30 +143,39 @@ const HeroBanner = () => {
     return (
       <div className="flex flex-col items-center justify-center h-96">
         <RefreshCw size={32} className="text-emerald-500 animate-spin mb-4" />
-        <p className="text-slate-500 font-bold uppercase tracking-widest text-[10px]">Syncing Hero Buffer...</p>
+        <p className="text-slate-500 font-black uppercase tracking-[4px] text-[10px]">Syncing Hero Buffer...</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-10 animate-in fade-in duration-500 pb-20">
-      <SectionHeader
-        title="Hero Banner CMS"
-        subtitle="Manage the primary visual gateway and call-to-actions of the homepage."
-        icon={ImageIcon}
-      />
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <SectionHeader
+          title="Hero Banner CMS"
+          subtitle="Command the platform's primary visual gateway and call-to-actions."
+          icon={ImageIcon}
+        />
+        <div className="px-6 py-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl flex items-center gap-3">
+           <ShieldCheck size={18} className="text-emerald-500" />
+           <div>
+              <p className="text-[9px] font-black text-emerald-600 uppercase tracking-widest leading-none">Status: Connected</p>
+              <p className="text-[10px] text-slate-500 font-bold tracking-tighter">Direct Cloud Synchronization : Supabase</p>
+           </div>
+        </div>
+      </div>
 
       {error && (
-        <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 p-6 rounded-[32px] flex items-center gap-4 text-rose-600 animate-in slide-in-from-top-4">
+        <div className="bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/20 p-6 rounded-[32px] flex items-center gap-4 text-rose-600 animate-in slide-in-from-top-4 shadow-sm">
            <AlertCircle size={24} />
            <p className="font-bold text-sm">{error}</p>
         </div>
       )}
 
       {success && (
-        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-6 rounded-[32px] flex items-center gap-4 text-emerald-600 animate-in slide-in-from-top-4">
+        <div className="bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-900/20 p-6 rounded-[32px] flex items-center gap-4 text-emerald-600 animate-in slide-in-from-top-4 shadow-sm">
            <CheckCircle2 size={24} />
-           <p className="font-bold text-sm">Hero configuration deployed live.</p>
+           <p className="font-bold text-sm">Hero configuration deployed successfully to cloud.</p>
         </div>
       )}
 
@@ -120,16 +186,17 @@ const HeroBanner = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <Type size={18} className="text-emerald-600" />
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Textual Matrix</h4>
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Narrative Matrix</h4>
             </div>
 
             <div className="space-y-2">
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Gold Subtitle</label>
               <input
                 type="text"
-                value={formData.subtitle}
-                onChange={(e) => setFormData({...formData, subtitle: e.target.value})}
+                value={formData.goldSubtitle}
+                onChange={(e) => setFormData({...formData, goldSubtitle: e.target.value})}
                 className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                placeholder="e.g. India's #1 Land Investment Platform"
               />
             </div>
 
@@ -137,19 +204,21 @@ const HeroBanner = () => {
               <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Main Hero Title</label>
               <input
                 type="text"
-                value={formData.title}
-                onChange={(e) => setFormData({...formData, title: e.target.value})}
+                value={formData.heroTitle}
+                onChange={(e) => setFormData({...formData, heroTitle: e.target.value})}
                 className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                placeholder="e.g. Invest in Premium Land from ₹500"
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Narrative Description</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Platform Narrative</label>
               <textarea
                 rows={4}
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none leading-relaxed"
+                placeholder="Enter compelling homepage copy..."
               />
             </div>
           </div>
@@ -157,51 +226,55 @@ const HeroBanner = () => {
           <div className="space-y-6">
             <div className="flex items-center gap-3">
               <ImageIcon size={18} className="text-blue-600" />
-              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Visual Assets</h4>
+              <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Visual Deployment</h4>
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Background Image URL</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Background Identity URL</label>
               <input
                 type="text"
-                value={formData.image_url}
-                onChange={(e) => setFormData({...formData, image_url: e.target.value})}
+                value={formData.backgroundImage}
+                onChange={(e) => setFormData({...formData, backgroundImage: e.target.value})}
                 className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                placeholder="https://images.unsplash.com/..."
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">YouTube / Video URL</label>
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">YouTube Strategy Link</label>
               <div className="relative">
                 <Video className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <input
                   type="text"
-                  value={formData.video_url}
-                  onChange={(e) => setFormData({...formData, video_url: e.target.value})}
+                  value={formData.videoUrl}
+                  onChange={(e) => setFormData({...formData, videoUrl: e.target.value})}
                   className="w-full pl-16 pr-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                  placeholder="https://www.youtube.com/watch?v=..."
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6 pt-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">CTA Text</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">CTA Button Text</label>
                 <input
                   type="text"
-                  value={formData.cta_text}
-                  onChange={(e) => setFormData({...formData, cta_text: e.target.value})}
+                  value={formData.ctaText}
+                  onChange={(e) => setFormData({...formData, ctaText: e.target.value})}
                   className="w-full px-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                  placeholder="e.g. Start Investing"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">CTA Link</label>
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">CTA Target Path</label>
                 <div className="relative">
                    <LinkIcon className="absolute left-6 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                    <input
                      type="text"
-                     value={formData.cta_link}
-                     onChange={(e) => setFormData({...formData, cta_link: e.target.value})}
+                     value={formData.ctaLink}
+                     onChange={(e) => setFormData({...formData, ctaLink: e.target.value})}
                      className="w-full pl-14 pr-8 py-5 bg-slate-50 dark:bg-slate-800 border-none rounded-3xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white transition-all outline-none"
+                     placeholder="e.g. /projects"
                    />
                 </div>
               </div>
@@ -213,29 +286,40 @@ const HeroBanner = () => {
            <button
              onClick={handleSave}
              disabled={saving}
-             className="px-20 py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-[4px] text-xs hover:bg-emerald-700 transition-all shadow-3xl shadow-emerald-500/40 flex items-center justify-center gap-4 disabled:opacity-50"
+             className="px-20 py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-[4px] text-xs hover:bg-emerald-700 transition-all shadow-3xl shadow-emerald-500/40 flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95"
            >
-             {saving ? <RefreshCw className="animate-spin" size={20}/> : <Save size={20}/>}
+             {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
              Sync Hero Matrix
            </button>
         </div>
       </div>
 
-      {/* Live Snapshot */}
-      <div className="bg-slate-950 rounded-[48px] p-20 relative overflow-hidden">
-          <div className="absolute inset-0 opacity-40">
-             <img src={formData.image_url} className="w-full h-full object-cover" />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-r from-slate-950 to-transparent" />
+      {/* Live Snapshot Preview */}
+      <div className="space-y-4">
+        <h3 className="text-[10px] font-black uppercase tracking-[3px] text-slate-400 ml-10">Production Real-Time Snapshot</h3>
+        <div className="bg-slate-950 rounded-[48px] p-10 md:p-20 relative overflow-hidden min-h-[500px] flex items-center shadow-2xl">
+            <div className="absolute inset-0 opacity-40">
+               <img src={formData.backgroundImage || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"} className="w-full h-full object-cover" alt="Hero Preview" />
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/60 to-transparent" />
 
-          <div className="relative z-10 max-w-2xl space-y-6">
-             <p className="text-gold-500 font-black uppercase tracking-[4px] text-xs">{formData.subtitle}</p>
-             <h2 className="text-5xl font-black text-white tracking-tighter leading-none">{formData.title}</h2>
-             <p className="text-lg text-slate-400 font-medium italic">"{formData.description}"</p>
-             <div className="pt-6">
-                <button className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px]">{formData.cta_text}</button>
-             </div>
-          </div>
+            <div className="relative z-10 max-w-2xl space-y-8">
+               <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-900/30 text-emerald-400 rounded-full text-[10px] font-black uppercase tracking-widest border border-emerald-500/20">
+                  <Zap size={12} className="fill-current" />
+                  {formData.goldSubtitle || "India's #1 Land Investment Platform"}
+               </div>
+               <h2 className="text-4xl md:text-6xl font-black text-white tracking-tighter leading-[1.1] uppercase">{formData.heroTitle || "Invest in Premium Land from ₹500"}</h2>
+               <p className="text-lg text-slate-400 font-medium italic leading-relaxed max-w-lg">"{formData.description || "Democratizing real estate ownership through fractional investment. Secure, transparent, and high-yield land assets at your fingertips."}"</p>
+               <div className="pt-4 flex gap-4">
+                  <button className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20">{formData.ctaText || "Start Investing"}</button>
+                  {formData.videoUrl && (
+                    <div className="w-14 h-14 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
+                      <Video size={20} />
+                    </div>
+                  )}
+               </div>
+            </div>
+        </div>
       </div>
     </div>
   );
