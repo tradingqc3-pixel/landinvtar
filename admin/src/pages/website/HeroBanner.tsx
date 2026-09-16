@@ -1,7 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import SectionHeader from '../../components/SectionHeader';
-import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Loader2, Zap, ShieldCheck } from 'lucide-react';
+import { Save, RefreshCw, AlertCircle, CheckCircle2, Type, Image as ImageIcon, Link as LinkIcon, Loader2, Zap, ShieldCheck, Video, UploadCloud, Play } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 /**
  * Hero Banner CMS - Configuration Terminal
@@ -12,6 +18,9 @@ const HeroBanner = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const thumbInputRef = useRef<HTMLInputElement>(null);
 
   // Default values following the platform's visual identity
   const DEFAULT_HERO = {
@@ -20,7 +29,12 @@ const HeroBanner = () => {
     description: "Democratizing real estate ownership through fractional investment.",
     backgroundImage: "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg",
     ctaText: "Start Investing",
-    ctaLink: "/projects"
+    ctaLink: "/projects",
+    watchButtonText: "Watch Strategy",
+    watchVideoType: "youtube",
+    watchVideoUrl: "",
+    watchThumbnailUrl: "",
+    watchEnabled: false
   };
 
   // Form State
@@ -31,7 +45,12 @@ const HeroBanner = () => {
     description: '',
     backgroundImage: '',
     ctaText: '',
-    ctaLink: ''
+    ctaLink: '',
+    watchButtonText: '',
+    watchVideoType: '',
+    watchVideoUrl: '',
+    watchThumbnailUrl: '',
+    watchEnabled: false
   });
 
   useEffect(() => {
@@ -57,7 +76,7 @@ const HeroBanner = () => {
 
       if (sbError) {
         if (sbError.code === 'PGRST204' || sbError.message?.includes('schema cache')) {
-          throw new Error("Supabase Schema Error: The 'hero_banner' table was not found in the 'public' schema. This often happens if the migration hasn't been executed or if the table was named 'hero_banners' in an older version. Please run the SQL in 'supabase/migrations/20260813300000_definitive_hero_fix.sql' in your Supabase SQL Editor to resolve this.");
+          throw new Error("Supabase Schema Error: The 'hero_banner' table was not found in the 'public' schema. Please run the migration to add the required columns.");
         }
         throw sbError;
       }
@@ -70,7 +89,12 @@ const HeroBanner = () => {
           description: data.description || '',
           backgroundImage: data.background_image_url || '',
           ctaText: data.cta_text || '',
-          ctaLink: data.cta_link || ''
+          ctaLink: data.cta_link || '',
+          watchButtonText: data.watch_button_text || 'Watch Strategy',
+          watchVideoType: data.watch_video_type || 'youtube',
+          watchVideoUrl: data.watch_video_url || '',
+          watchThumbnailUrl: data.watch_thumbnail_url || '',
+          watchEnabled: data.watch_enabled ?? false
         });
       } else {
         // Fallback to default schema if no record exists
@@ -84,6 +108,36 @@ const HeroBanner = () => {
       setError(err.message || `Cloud Synchronization failure: ${err.message}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `hero-watch-thumb-${Date.now()}.${fileExt}`;
+      const filePath = `hero/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('website_assets')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('website_assets')
+        .getPublicUrl(filePath);
+
+      setFormData(prev => ({ ...prev, watchThumbnailUrl: publicUrl }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Upload failure.');
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -107,6 +161,11 @@ const HeroBanner = () => {
         background_image_url: formData.backgroundImage,
         cta_text: formData.ctaText,
         cta_link: formData.ctaLink,
+        watch_button_text: formData.watchButtonText,
+        watch_video_type: formData.watchVideoType,
+        watch_video_url: formData.watchVideoUrl,
+        watch_thumbnail_url: formData.watchThumbnailUrl,
+        watch_enabled: formData.watchEnabled,
         updated_at: new Date().toISOString()
       };
 
@@ -264,10 +323,103 @@ const HeroBanner = () => {
           </div>
         </div>
 
+        {/* WATCH STRATEGY SECTION */}
+        <div className="pt-8 border-t border-slate-50 dark:border-slate-800 space-y-8 relative z-10">
+           <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                 <Video size={18} className="text-purple-600" />
+                 <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">Watch Strategy Module</h4>
+              </div>
+              <div className="flex items-center gap-3">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Enable Feature</label>
+                 <button
+                   onClick={() => setFormData({...formData, watchEnabled: !formData.watchEnabled})}
+                   className={cn(
+                     "w-12 h-6 rounded-full transition-all relative",
+                     formData.watchEnabled ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-700"
+                   )}
+                 >
+                    <div className={cn(
+                      "absolute top-1 w-4 h-4 rounded-full bg-white transition-all",
+                      formData.watchEnabled ? "left-7" : "left-1"
+                    )} />
+                 </button>
+              </div>
+           </div>
+
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Button Label</label>
+                 <input
+                   type="text"
+                   value={formData.watchButtonText}
+                   onChange={(e) => setFormData({...formData, watchButtonText: e.target.value})}
+                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white outline-none"
+                   placeholder="e.g. Watch Strategy"
+                 />
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Video Source Type</label>
+                 <select
+                   value={formData.watchVideoType}
+                   onChange={(e) => setFormData({...formData, watchVideoType: e.target.value})}
+                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-bold dark:text-white outline-none appearance-none cursor-pointer"
+                 >
+                    <option value="youtube">YouTube</option>
+                    <option value="mp4">Direct MP4</option>
+                    <option value="vimeo">Vimeo</option>
+                 </select>
+              </div>
+              <div className="space-y-2">
+                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Stream URL</label>
+                 <input
+                   type="text"
+                   value={formData.watchVideoUrl}
+                   onChange={(e) => setFormData({...formData, watchVideoUrl: e.target.value})}
+                   className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-mono text-xs dark:text-white outline-none"
+                   placeholder="https://..."
+                 />
+              </div>
+           </div>
+
+           <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-4">Thumbnail Gateway</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 <div
+                   className="aspect-video rounded-3xl overflow-hidden bg-slate-50 dark:bg-slate-800 border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center justify-center gap-4 cursor-pointer hover:border-emerald-500 transition-all relative group"
+                   onClick={() => thumbInputRef.current?.click()}
+                 >
+                    {formData.watchThumbnailUrl ? (
+                       <img src={formData.watchThumbnailUrl} className="w-full h-full object-cover" alt="Thumb" />
+                    ) : (
+                       <>
+                          <UploadCloud size={32} className="text-slate-300" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Upload Poster Image</p>
+                       </>
+                    )}
+                    {uploading && <div className="absolute inset-0 bg-slate-900/60 flex items-center justify-center"><RefreshCw className="animate-spin text-white" /></div>}
+                 </div>
+                 <div className="space-y-4">
+                    <input
+                      type="text"
+                      value={formData.watchThumbnailUrl}
+                      onChange={(e) => setFormData({...formData, watchThumbnailUrl: e.target.value})}
+                      className="w-full px-6 py-4 bg-slate-50 dark:bg-slate-800 border-none rounded-2xl focus:ring-2 focus:ring-emerald-500 font-mono text-[10px] dark:text-white outline-none"
+                      placeholder="Direct Thumbnail URL"
+                    />
+                    <input type="file" ref={thumbInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
+                    <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border border-slate-100 dark:border-slate-800">
+                       <p className="text-[10px] text-slate-500 italic leading-relaxed">"The thumbnail is displayed in the video modal preview and before playback starts. High-resolution 16:9 images recommended."</p>
+                    </div>
+                 </div>
+              </div>
+           </div>
+        </div>
+
         <div className="pt-8 border-t border-slate-50 dark:border-slate-800 flex justify-center">
            <button
              onClick={handleSave}
-             disabled={saving}
+             disabled={saving || uploading}
              className="px-20 py-6 bg-emerald-600 text-white rounded-3xl font-black uppercase tracking-[4px] text-xs hover:bg-emerald-700 transition-all shadow-3xl shadow-emerald-500/40 flex items-center justify-center gap-4 disabled:opacity-50 active:scale-95"
            >
              {saving ? <Loader2 className="animate-spin" size={20}/> : <Save size={20}/>}
@@ -294,6 +446,11 @@ const HeroBanner = () => {
                <p className="text-lg text-slate-400 font-medium italic leading-relaxed max-w-lg">"{formData.description || "Democratizing real estate ownership through fractional investment. Secure, transparent, and high-yield land assets at your fingertips."}"</p>
                <div className="pt-4 flex gap-4">
                   <button className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-emerald-600/20">{formData.ctaText || "Start Investing"}</button>
+                  {formData.watchEnabled && (
+                    <button className="px-10 py-5 bg-white/10 backdrop-blur-md text-white border border-white/10 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-2">
+                       <Play size={14} fill="white" /> {formData.watchButtonText || "Watch Strategy"}
+                    </button>
+                  )}
                </div>
             </div>
         </div>

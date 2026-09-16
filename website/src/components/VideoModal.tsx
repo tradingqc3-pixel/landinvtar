@@ -7,9 +7,10 @@ interface VideoModalProps {
   isOpen: boolean;
   onClose: () => void;
   videoUrl: string;
+  thumbnailUrl?: string;
 }
 
-const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl }) => {
+const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl, thumbnailUrl }) => {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -23,6 +24,9 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl }) =>
       window.removeEventListener('keydown', handleEsc);
     };
   }, [isOpen, onClose]);
+
+  // To avoid TypeScript issues with certain react-player versions, we cast to any
+  const Player = ReactPlayer as any;
 
   return (
     <AnimatePresence>
@@ -53,12 +57,18 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl }) =>
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                  <Loader2 className="w-12 h-12 text-emerald-500 animate-spin opacity-50" />
               </div>
-              <ReactPlayer
-                src={videoUrl}
+              <Player
+                url={videoUrl}
                 width="100%"
                 height="100%"
                 playing={true}
                 controls={true}
+                light={thumbnailUrl}
+                playIcon={
+                   <div className="w-20 h-20 bg-emerald-600 rounded-full flex items-center justify-center text-white shadow-2xl scale-100 hover:scale-110 transition-transform">
+                      <PlayIcon className="w-8 h-8 fill-current" />
+                   </div>
+                }
                 className="relative z-10"
               />
             </div>
@@ -68,5 +78,9 @@ const VideoModal: React.FC<VideoModalProps> = ({ isOpen, onClose, videoUrl }) =>
     </AnimatePresence>
   );
 };
+
+const PlayIcon = ({ className }: { className?: string }) => (
+  <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+);
 
 export default VideoModal;

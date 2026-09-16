@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 import {
   ChevronRight, TrendingUp, ShieldCheck,
   IndianRupee, ArrowUpRight, BarChart3,
-  Zap, RefreshCw, PlayCircle, Map
+  Zap, RefreshCw, PlayCircle, Map, Image as ImageIcon
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import type { LandProject, HeroBanner } from '../../../types/database';
+import type { LandProject, HeroBanner } from '../types/database';
 import VideoModal from '../components/VideoModal';
+import ImageLightbox from '../components/ImageLightbox';
 import FAQSection from '../components/FAQSection';
 import TestimonialSection from '../components/TestimonialSection';
 
@@ -17,6 +18,7 @@ const Home = () => {
   const [hero, setHero] = useState<HeroBanner | null>(null);
   const [loading, setLoading] = useState(true);
   const [isVideoOpen, setIsVideoOpen] = useState(false);
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   useEffect(() => {
     fetchInitialData();
@@ -55,7 +57,14 @@ const Home = () => {
       <VideoModal
         isOpen={isVideoOpen}
         onClose={() => setIsVideoOpen(false)}
-        videoUrl="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        videoUrl={hero?.watch_video_url || ''}
+        thumbnailUrl={hero?.watch_thumbnail_url || ''}
+      />
+
+      <ImageLightbox
+        isOpen={isImageOpen}
+        onClose={() => setIsImageOpen(false)}
+        imageUrl={hero?.watch_thumbnail_url || hero?.background_image_url || ''}
       />
 
       {/* Hero Section */}
@@ -85,20 +94,24 @@ const Home = () => {
             <p className="text-lg sm:text-xl text-slate-600 dark:text-slate-400 leading-relaxed max-w-lg font-medium italic">
               "{hero?.description || "Democratizing real estate ownership through fractional investment."}"
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+            <div className="flex flex-wrap gap-4 pt-4">
               <Link
                 to={hero?.cta_link || "/projects"}
-                className="px-10 py-5 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3 text-sm group"
+                className="px-10 py-5 bg-emerald-600 text-white rounded-[16px] font-black uppercase tracking-widest hover:bg-emerald-700 transition-all shadow-2xl shadow-emerald-600/30 flex items-center justify-center gap-3 text-sm group h-[60px]"
               >
                 {hero?.cta_text || "Start Investing"}
                 <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
-              <button
-                onClick={() => setIsVideoOpen(true)}
-                className="px-10 py-5 bg-white dark:bg-slate-900 text-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-2xl font-black uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-all flex items-center justify-center gap-3 text-sm shadow-sm"
-              >
-                <PlayCircle className="w-5 h-5 text-emerald-600" /> Watch Strategy
-              </button>
+
+              {hero?.watch_enabled && hero.watch_video_url && (
+                <button
+                  onClick={() => setIsVideoOpen(true)}
+                  className="px-10 py-5 bg-slate-900/40 backdrop-blur-md text-white border border-emerald-500/50 rounded-[16px] font-black uppercase tracking-widest hover:border-emerald-400 hover:shadow-[0_0_25px_rgba(16,185,129,0.2)] transition-all flex items-center justify-center gap-3 text-sm h-[60px]"
+                >
+                  <PlayCircle className="w-6 h-6 text-emerald-500" />
+                  {hero.watch_button_text || "Watch Strategy"}
+                </button>
+              )}
             </div>
           </motion.div>
 
@@ -108,7 +121,7 @@ const Home = () => {
             transition={{ duration: 1, ease: "easeOut" }}
             className="relative"
           >
-            <div className="relative rounded-[48px] overflow-hidden shadow-2xl border-8 border-white dark:border-slate-800/50 aspect-[4/5] md:aspect-square group">
+            <div className="relative rounded-[48px] overflow-hidden shadow-[0_50px_100px_-20px_rgba(0,0,0,0.3)] border-8 border-white dark:border-slate-800/50 aspect-[4/5] md:aspect-square group">
               <img
                 src={hero?.background_image_url || "https://images.pexels.com/photos/1117452/pexels-photo-1117452.jpeg"}
                 alt="Premium Land"
