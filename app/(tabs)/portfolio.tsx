@@ -11,6 +11,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { supabase } from '@/lib/supabase';
 import { useApp } from '@/context/AppContext';
 import { withTimeout } from '@/lib/api-utils';
+import { storage } from '@/lib/storage';
 import type { Investment } from '@/types/database';
 import { computeCurrentValue, computePortfolioStats } from '@/types/database';
 

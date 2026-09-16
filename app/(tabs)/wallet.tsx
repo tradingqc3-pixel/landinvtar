@@ -15,6 +15,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { useApp } from '@/context/AppContext';
 import { getSupabaseRuntimeConfig, supabase } from '@/lib/supabase';
 import { withTimeout } from '@/lib/api-utils';
+import { storage } from '@/lib/storage';
 import type { WalletTransaction } from '@/types/database';
 
 // Import Razorpay

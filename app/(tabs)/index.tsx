@@ -81,9 +81,7 @@ export default function HomeScreen() {
       // Cache the result for next time
       await storage.setItem('home_data_cache', JSON.stringify({ trending, invs, unread }));
 
-      if (fadeAnim._value === 0) {
-        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-      }
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
     } catch (err) {
       console.error('[Home] Fresh fetch error:', err);
     }

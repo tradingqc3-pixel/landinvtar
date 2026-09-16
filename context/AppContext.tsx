@@ -34,6 +34,7 @@ const AppContext = createContext<AppContextType>({
   isLocked: false,
   privacyMode: false,
   favorites: [],
+  settings: null,
   unlockApp: async () => false,
   refreshProfile: async () => null,
   signOut: async () => {},
@@ -258,7 +259,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // 2. Parallel initialization of Supabase data
         const [sessionRes, settingsRes] = await Promise.all([
           supabase.auth.getSession().catch(() => ({ data: { session: null } })),
-          supabase.from('app_settings').select('maintenance_mode, maintenance_message').limit(1).maybeSingle().catch(() => ({ data: null }))
+          supabase.from('app_settings').select('maintenance_mode, maintenance_message').limit(1).maybeSingle()
         ]);
 
         if (!isMounted.current) return;
@@ -303,7 +304,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (p) storage.setItem('cached_profile', JSON.stringify(p));
       } else if (event === 'SIGNED_OUT') {
         safeUpdate(() => setProfile(null));
-        storage.removeItem('cached_profile');
+        storage.deleteItem('cached_profile');
       } else if (event === 'PASSWORD_RECOVERY') {
         router.push('/reset-password');
       }
@@ -328,6 +329,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isLocked,
         privacyMode,
         favorites,
+        settings,
         unlockApp,
         refreshProfile,
         signOut,

@@ -133,9 +133,7 @@ export default function ExploreScreen() {
         // Update cache
         await storage.setItem('explore_projects_cache', JSON.stringify(data));
 
-        if (fadeAnim._value === 0) {
-          Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
-        }
+        Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }).start();
       } else if (error) {
         console.error('[Explore] Fetch error:', error);
       }
